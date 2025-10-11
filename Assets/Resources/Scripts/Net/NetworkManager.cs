@@ -59,8 +59,6 @@ public class NetworkManager : MonoBehaviour
             }
         }
 
-        SceneManager.LoadScene("Map", LoadSceneMode.Additive);
-
         playerName = Random.Range(1000, 9999).ToString();
         udpClient = new UdpClient(0);
         serverEndPoint = new IPEndPoint(IPAddress.Parse(address), 25001);

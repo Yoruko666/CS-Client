@@ -61,6 +61,7 @@ public class UIStart : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler,
             text.color = colorTextClick;
             clicked = true;
             timer = 0;
+            HallManager.instance.Match();
         }
     }
 }
