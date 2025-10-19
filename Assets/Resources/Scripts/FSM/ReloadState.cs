@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Newtonsoft.Json;
 
 public class ReloadState : IState
 {
@@ -21,6 +22,8 @@ public class ReloadState : IState
 
     public override void OnStateEnter()
     {
+        PlayerReload playerReload = new PlayerReload(NetworkManager.instance.playerName);
+        NetworkManager.SendMessage(new Message(MessageType.Reload, JsonConvert.SerializeObject(playerReload)));
         if (FSM.weaponController.weaponConfig.SingleReload)
             SingleReloadEnter();
         else MagazineReloadEnter();
@@ -32,17 +35,18 @@ public class ReloadState : IState
 
     private void MagazineReloadEnter()
     {
-        reloadTime = FSM.weaponController.weaponConfig.reloadTime;
         FSM.characterController.animator.Play("Reload");
         FSM.weaponController.MagazineReload();
-        reloadTime = FSM.weaponController.weaponConfig.reloadTime;
+        reloadTime = 0;
     }
 
     private void MagazineReloadUpdate()
     {
-        reloadTime -= Time.deltaTime;
-        if (reloadTime <= 0)
+        reloadTime += Time.deltaTime;
+        if (reloadTime >= FSM.weaponController.weaponConfig.reloadTime)
             FSM.SwitchState(States.Idle);
+        if (reloadTime >= FSM.weaponController.weaponConfig.reloadTime)
+            FSM.weaponController.ReloadDone();
     }
 
     private void SingleReloadEnter()
@@ -85,7 +89,6 @@ public class ReloadState : IState
                 if (FSM.characterController.animator.GetCurrentAnimatorStateInfo(0).normalizedTime > 0.99f)
                     FSM.SwitchState(States.Idle);
                 break;
-
         }
     }
 

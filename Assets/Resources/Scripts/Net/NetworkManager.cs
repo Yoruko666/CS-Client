@@ -1,4 +1,5 @@
 using Newtonsoft.Json;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
@@ -59,9 +60,10 @@ public class NetworkManager : MonoBehaviour
             }
         }
 
-        playerName = Random.Range(1000, 9999).ToString();
+        playerName = NetworkConfigManager.instance.uid;
         udpClient = new UdpClient(0);
-        serverEndPoint = new IPEndPoint(IPAddress.Parse(address), 25001);
+        serverEndPoint = new IPEndPoint(IPAddress.Parse(address), NetworkConfigManager.instance.serverPort);
+        Debug.Log(NetworkConfigManager.instance.serverPort);
         SendMessage(new Message(MessageType.Connect, playerName));
 
         Thread receiveThread = new Thread(new ThreadStart(ReceiveMessage));
@@ -121,11 +123,18 @@ public class NetworkManager : MonoBehaviour
                         playerPool[infoPlayerName].GetComponent<TPWeaponManager>().Fire();
                     break;
 
+                case MessageType.Reload:
+                    PlayerReload playerReload = JsonConvert.DeserializeObject<PlayerReload>(msg.info);
+                    infoPlayerName = playerReload.playerName;
+                    if (infoPlayerName != playerName)
+                        playerPool[infoPlayerName].GetComponent<TPWeaponManager>().Reload();
+                    break;
+
                 case MessageType.PurchaseWeapon:
                     PlayerPurchaseWeapon playerPurchaseWeapon = JsonConvert.DeserializeObject<PlayerPurchaseWeapon>(msg.info);
                     infoPlayerName = playerPurchaseWeapon.playerName;
                     int id = playerPurchaseWeapon.id;
-                    if(playerName == infoPlayerName)
+                    if (playerName == infoPlayerName)
                     {
                         localPlayer.GetComponent<WeaponManager>().PurchaseWeapon(id);
                     }
@@ -188,11 +197,18 @@ public class NetworkManager : MonoBehaviour
     {
         while(udpClient != null)
         {
-            IPEndPoint remote = new IPEndPoint(IPAddress.Any, 0);
-            byte[] data = udpClient.Receive(ref remote);
-            string str = Encoding.UTF8.GetString(data);
-            Message msg = JsonConvert.DeserializeObject<Message>(str);
-            messageList.Enqueue(msg);
+            try
+            {
+                IPEndPoint remote = new IPEndPoint(IPAddress.Any, 0);
+                byte[] data = udpClient.Receive(ref remote);
+                string str = Encoding.UTF8.GetString(data);
+                Message msg = JsonConvert.DeserializeObject<Message>(str);
+                messageList.Enqueue(msg);
+            }
+            catch (SocketException ex)
+            {
+                Debug.Log("Socket error");
+            }
         }
     }
 
@@ -204,10 +220,5 @@ public class NetworkManager : MonoBehaviour
         float rotationXDiff = Mathf.Abs(Mathf.DeltaAngle(localState.rotationX, serverState.rotationX));
         if (positionDistance > 0.2f || rotationYDiff > 1f || rotationXDiff > 1f) return false;
         return true;
-    }
-
-    private void JoinRoom(int port)
-    {
-         serverEndPoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 8888);
     }
 }

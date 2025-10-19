@@ -26,8 +26,13 @@ public class TPWeaponManager : MonoBehaviour
 
     public void Fire()
     {
-        animator.PlayInFixedTime("Fire", 1, 0);
+        animator.Play("Fire", 1, 0);
         weaponList[activeIndex].GetComponent<WeaponController>().Fire();
+    }
+
+    public void Reload()
+    {
+        animator.Play("Reload", 1, 0);
     }
 
     public void SwitchWeapon(int index)

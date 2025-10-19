@@ -4,7 +4,7 @@ using UnityEngine;
 
 public enum MessageType
 {
-    JoinRoom, Connect, InputInfo, AllPlayersInfo, Fire, SwitchWeapon, PurchaseWeapon, AcquireWeapon, Die
+    JoinRoom, Connect, InputInfo, AllPlayersInfo, Fire, Reload, SwitchWeapon, PurchaseWeapon, AcquireWeapon, Die
 }
 
 public class Message
@@ -91,6 +91,15 @@ public class PlayerFire
 {
     public string playerName;
     public PlayerFire(string playerName)
+    {
+        this.playerName = playerName;
+    }
+}
+
+public class PlayerReload
+{
+    public string playerName; 
+    public PlayerReload(string playerName)
     {
         this.playerName = playerName;
     }
