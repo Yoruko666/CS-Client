@@ -72,7 +72,7 @@ Camera:
   m_Depth: 0
   m_CullingMask:
     serializedVersion: 2
-    m_Bits: 15671
+    m_Bits: 15799
   m_RenderingPath: -1
   m_TargetTexture: {fileID: 8400000, guid: 6094ab3ba8b3cd54387ba4a7068ec08a, type: 2}
   m_TargetDisplay: 0
@@ -411,6 +411,7 @@ MonoBehaviour:
   weaponConfig: {fileID: 11400000, guid: 896c9f8c2934c564b9f197ca10225722, type: 2}
   FX: {fileID: 5866536446008462653}
   muzzle: {fileID: 8054848023254039390}
+  playerCenter: {fileID: 0}
   ammoNum: 0
   ammoReserve: 0
   animator: {fileID: 0}
