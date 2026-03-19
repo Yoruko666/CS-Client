@@ -6,6 +6,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 
@@ -17,7 +18,7 @@ public class NetworkManager : MonoBehaviour
 
     private static UdpClient udpClient;
     private static IPEndPoint serverEndPoint;
-    private static ConcurrentQueue<Message> messageList = new();
+    private static ConcurrentQueue<(MessageType, string)> messageList = new();
 
     public Dictionary<string, GameObject> playerPool = new();
 
@@ -52,8 +53,7 @@ public class NetworkManager : MonoBehaviour
         udpClient = new UdpClient(0);
         serverEndPoint = new IPEndPoint(IPAddress.Parse(NetworkConfigManager.instance.serverAddress), NetworkConfigManager.instance.serverPort);
 
-        Message message = new(MessageType.Connect, playerName);
-        SendMessage(message);
+        SendMessage(MessageType.Connect, new PlayerConnect(playerName));
 
         Thread receiveThread = new(new ThreadStart(ReceiveMessage));
         receiveThread.Start();
@@ -61,16 +61,17 @@ public class NetworkManager : MonoBehaviour
 
     private void Update()
     {
-        while(messageList.TryDequeue(out Message msg))
+        while(messageList.TryDequeue(out var data))
         {
             GameObject player;
-            switch (msg.type)
+            string msg = data.Item2;
+            switch (data.Item1)
             {
                 case MessageType.Start:
                     HallManager.instance.StartGame();
                     MatchManager.instance.StartGame();
 
-                    List<PlayerStateInfo> playersInfo = JsonConvert.DeserializeObject<List<PlayerStateInfo>>(msg.info);
+                    List<PlayerStateInfo> playersInfo = JsonConvert.DeserializeObject<List<PlayerStateInfo>>(msg);
                     MatchManager.instance.playerNum = playersInfo.Count;
                     for(int i = 0; i < playersInfo.Count; i++)
                     {
@@ -94,12 +95,12 @@ public class NetworkManager : MonoBehaviour
                     break;
 
                 case MessageType.GameProgress:
-                    GameProgress gameProgress = JsonConvert.DeserializeObject<GameProgress>(msg.info);
+                    GameProgress gameProgress = JsonConvert.DeserializeObject<GameProgress>(msg);
                     MatchManager.instance.SwitchProgress(gameProgress.progress);
                     break;
 
                 case MessageType.AllPlayersInfo:
-                    playersInfo = JsonConvert.DeserializeObject<List<PlayerStateInfo>>(msg.info);
+                    playersInfo = JsonConvert.DeserializeObject<List<PlayerStateInfo>>(msg);
                     foreach (PlayerStateInfo playerState in playersInfo)
                     {
                         infoPlayerName = playerState.playerName;
@@ -133,21 +134,21 @@ public class NetworkManager : MonoBehaviour
                     break;
 
                 case MessageType.Fire:
-                    PlayerFire playerFire = JsonConvert.DeserializeObject<PlayerFire>(msg.info);
+                    PlayerFire playerFire = JsonConvert.DeserializeObject<PlayerFire>(msg);
                     infoPlayerName = playerFire.playerName;
                     if (infoPlayerName != playerName)
                         playerPool[infoPlayerName].GetComponent<TPWeaponManager>().Fire(playerFire.GetHitPoint());
                     break;
 
                 case MessageType.Reload:
-                    PlayerReload playerReload = JsonConvert.DeserializeObject<PlayerReload>(msg.info);
+                    PlayerReload playerReload = JsonConvert.DeserializeObject<PlayerReload>(msg);
                     infoPlayerName = playerReload.playerName;
                     if (infoPlayerName != playerName)
                         playerPool[infoPlayerName].GetComponent<TPWeaponManager>().Reload();
                     break;
 
                 case MessageType.PurchaseWeapon:
-                    PlayerPurchaseWeapon playerPurchaseWeapon = JsonConvert.DeserializeObject<PlayerPurchaseWeapon>(msg.info);
+                    PlayerPurchaseWeapon playerPurchaseWeapon = JsonConvert.DeserializeObject<PlayerPurchaseWeapon>(msg);
                     infoPlayerName = playerPurchaseWeapon.playerName;
                     int weaponIid = playerPurchaseWeapon.id;
                     if (playerName == infoPlayerName)
@@ -157,21 +158,21 @@ public class NetworkManager : MonoBehaviour
                     break;
 
                 case MessageType.AcquireWeapon:
-                    PlayerAcquireWeapon playerAcquireWeapon = JsonConvert.DeserializeObject<PlayerAcquireWeapon>(msg.info);
+                    PlayerAcquireWeapon playerAcquireWeapon = JsonConvert.DeserializeObject<PlayerAcquireWeapon>(msg);
                     infoPlayerName = playerAcquireWeapon.playerName;
                     if (infoPlayerName != playerName)
                         playerPool[infoPlayerName].GetComponent<TPWeaponManager>().AcquireWeapon(playerAcquireWeapon.id);
                     break;
 
                 case MessageType.SwitchWeapon:
-                    PlayerSwitchWeapon playerSwitchWeapon = JsonConvert.DeserializeObject<PlayerSwitchWeapon>(msg.info);
+                    PlayerSwitchWeapon playerSwitchWeapon = JsonConvert.DeserializeObject<PlayerSwitchWeapon>(msg);
                     infoPlayerName = playerSwitchWeapon.playerName;
                     if (infoPlayerName != playerName)
                         playerPool[infoPlayerName].GetComponent<TPWeaponManager>().SwitchWeapon(playerSwitchWeapon.index);
                     break;
 
                 case MessageType.Kill:
-                    PlayerKill playerKill = JsonConvert.DeserializeObject<PlayerKill>(msg.info);
+                    PlayerKill playerKill = JsonConvert.DeserializeObject<PlayerKill>(msg);
                     if(playerName == playerKill.playerKillName)
                     {
                         playerPool[playerKill.playerDieName].GetComponent<TPPlayerController>().Die();
@@ -187,21 +188,21 @@ public class NetworkManager : MonoBehaviour
                     break;
 
                 case MessageType.Hit:
-                    Hit hit = JsonConvert.DeserializeObject<Hit>(msg.info);
+                    Hit hit = JsonConvert.DeserializeObject<Hit>(msg);
                     Transform indicators = GameObject.Find("Canvas/Indicator").transform;
                     GameObject hitIndicator = Instantiate(Resources.Load<GameObject>("Prefabs/UI/HitIndicator"), indicators);
                     hitIndicator.GetComponent<UIHitIndicator>().Initialize(hit.GetPosition());
                     break;
 
                 case MessageType.RoundEnd:
-                    RoundEnd roundEnd = JsonConvert.DeserializeObject<RoundEnd>(msg.info);
+                    RoundEnd roundEnd = JsonConvert.DeserializeObject<RoundEnd>(msg);
                     if (roundEnd.winTeam == team)
                         MatchManager.instance.Win();
                     else MatchManager.instance.Lose();
                     break;
 
                 case MessageType.PingPong:
-                    PingPong pingPong = JsonConvert.DeserializeObject<PingPong>(msg.info);
+                    PingPong pingPong = JsonConvert.DeserializeObject<PingPong>(msg);
                     UIRTT.instance.ReceivePong(pingPong.tick);
                     break;
             }
@@ -238,14 +239,35 @@ public class NetworkManager : MonoBehaviour
         inputInfo.tick = tick;
         inputBuffer[tick] = inputInfo;
         stateBuffer[tick] = state;
-        SendMessage(new Message(MessageType.InputInfo, JsonConvert.SerializeObject(inputInfo)));
+        SendMessage(MessageType.InputInfo, inputInfo);
     }
 
-    public static void SendMessage(Message msg)
+    public static void SendMessage<T>(MessageType type, T data)
     {
-        string str = JsonConvert.SerializeObject(msg);
-        byte[] bytes = Encoding.UTF8.GetBytes(str);
-        udpClient.Send(bytes, bytes.Length, serverEndPoint);
+        try
+        {
+            byte[] typeBytes = BitConverter.GetBytes((int)type);
+            string dataStr = JsonConvert.SerializeObject(data);
+            byte[] dataBytes = Encoding.UTF8.GetBytes(dataStr);
+            byte[] lengthBytes = BitConverter.GetBytes(4 + dataBytes.Length);
+            byte[] sendBuffer = new byte[8 + dataBytes.Length];
+            Buffer.BlockCopy(lengthBytes, 0, sendBuffer, 0, 4);
+            Buffer.BlockCopy(typeBytes, 0, sendBuffer, 4, 4);
+            Buffer.BlockCopy(dataBytes, 0, sendBuffer, 8, dataBytes.Length);
+            udpClient.Send(sendBuffer, sendBuffer.Length, serverEndPoint);
+        }
+        catch (JsonSerializationException ex)
+        {
+            Debug.Log($"JSON serialize error：{ex.Message}");
+        }
+        catch (SocketException ex)
+        {
+            Debug.Log($"UDP send error：{ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            Debug.Log($"Message send error：{ex.Message}");
+        }
     }
 
     public static void ReceiveMessage()
@@ -256,9 +278,24 @@ public class NetworkManager : MonoBehaviour
             {
                 IPEndPoint remote = new(IPAddress.Any, 0);
                 byte[] data = udpClient.Receive(ref remote);
-                string str = Encoding.UTF8.GetString(data);
-                Message msg = JsonConvert.DeserializeObject<Message>(str);
-                messageList.Enqueue(msg);
+
+                if (data.Length < 8)
+                {
+                    Debug.Log("Data is too short.");
+                    continue;
+                }
+
+                int length = BitConverter.ToInt32(data, 0);
+                if(length != data.Length - 4)
+                {
+                    Debug.Log("Data length mismatch.");
+                    continue;
+                }
+
+                MessageType type = (MessageType)BitConverter.ToInt32(data, 4);
+
+                string str = Encoding.UTF8.GetString(data, 8, data.Length - 8);
+                messageList.Enqueue((type, str));
             }
             catch (SocketException ex)
             {

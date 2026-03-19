@@ -97,7 +97,7 @@ public class HallManager : MonoBehaviour
             if (slider.fillAmount >= 1f && persistentSceneHandle.IsDone && mapSceneHandle.IsDone)
             {
                 PlayerReady playerReady = new(NetworkManager.instance.playerName);
-                NetworkManager.SendMessage(new Message(MessageType.Ready, JsonConvert.SerializeObject(playerReady)));
+                NetworkManager.SendMessage(MessageType.Ready, playerReady);
             }
         }
     }

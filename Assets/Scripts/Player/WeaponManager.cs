@@ -100,7 +100,7 @@ public class WeaponManager : MonoBehaviour
                 weaponIndex++;
                 ApplyWeapon(weaponList[weaponIndex]);
                 PlayerSwitchWeapon playerSwitchWeapon = new PlayerSwitchWeapon(NetworkManager.instance.playerName, weaponIndex);
-                NetworkManager.SendMessage(new Message(MessageType.SwitchWeapon, JsonConvert.SerializeObject(playerSwitchWeapon)));
+                NetworkManager.SendMessage(MessageType.SwitchWeapon, playerSwitchWeapon);
             }
         }
         if (Input.mouseScrollDelta.y > 0)
@@ -110,7 +110,7 @@ public class WeaponManager : MonoBehaviour
                 weaponIndex--;
                 ApplyWeapon(weaponList[weaponIndex]);
                 PlayerSwitchWeapon playerSwitchWeapon = new PlayerSwitchWeapon(NetworkManager.instance.playerName, weaponIndex);
-                NetworkManager.SendMessage(new Message(MessageType.SwitchWeapon, JsonConvert.SerializeObject(playerSwitchWeapon)));
+                NetworkManager.SendMessage(MessageType.SwitchWeapon, playerSwitchWeapon);
             }
         }
         
@@ -156,7 +156,7 @@ public class WeaponManager : MonoBehaviour
         fireDirection = Quaternion.AngleAxis(horizontalOffset, playerRotation * Vector3.up) * fireDirection;
 
         PlayerFire playerFire = new(NetworkManager.instance.playerName, seed);
-        NetworkManager.SendMessage(new Message(MessageType.Fire, JsonConvert.SerializeObject(playerFire)));
+        NetworkManager.SendMessage(MessageType.Fire, playerFire);
 
         if (Physics.Raycast(center, fireDirection, out RaycastHit hit, 100f, ~(1 << playerLayer | 1 << CCLayer))){
             if (hit.collider.gameObject.layer == LayerMask.NameToLayer("Enemy"))

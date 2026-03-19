@@ -8,15 +8,12 @@ public enum MessageType
     InputInfo, AllPlayersInfo, Fire, Reload, SwitchWeapon, PurchaseWeapon, AcquireWeapon, Kill, Hit, RoundEnd
 }
 
-public class Message
+public class PlayerConnect
 {
-    public MessageType type;
-    public string info;
-    public Message() { }
-    public Message(MessageType type, string info)
+    public string playerName;
+    public PlayerConnect(string playerName)
     {
-        this.type = type;
-        this.info = info;
+        this.playerName = playerName;
     }
 }
 

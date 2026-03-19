@@ -18,8 +18,6 @@ public class UIRTT : MonoBehaviour
     public bool received = false;
     public int RTT = 0;
 
-    public static Message message = new();
-
     public TextMeshProUGUI text;
 
     private void Awake()
@@ -34,7 +32,6 @@ public class UIRTT : MonoBehaviour
     void Start()
     {
         pingPong = new PingPong(NetworkManager.instance.playerName, 0);
-        message.type = MessageType.PingPong;
     }
 
     void Update()
@@ -53,8 +50,7 @@ public class UIRTT : MonoBehaviour
             tick = pingPoingTick;
             pingTime = Time.time;
             pingPong.tick = pingPoingTick;
-            message.info = JsonConvert.SerializeObject(pingPong);
-            NetworkManager.SendMessage(message);
+            NetworkManager.SendMessage(MessageType.PingPong, pingPong);
             pingPoingTick = (++pingPoingTick) % 64;
             received = false;
 
