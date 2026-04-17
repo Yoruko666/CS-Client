@@ -1,10 +1,10 @@
-# CS 联机FPS游戏项目
+# CS 联机FPS游戏项目 客户端
 
 ## 游戏介绍
 
 本项目为FPS第一人称多人对战射击游戏，支持单人训练（尚未完善）、1v1及3v3模式。
 
-本项目绝大部分由[Yoruko666](https://github.com/Yoruko666)独立完成，感谢[StevezxC](https://github.com/stevezxc)在游戏早期提供了帮助。
+本项目绝大部分由[Yoruko666](https://github.com/Yoruko666)独立完成，感谢[Stevezxc](https://github.com/stevezxc)在游戏早期提供了帮助。
 
 下载Release下的最新版本到任意位置，解压并运行CS.exe即可开始游戏。
 
