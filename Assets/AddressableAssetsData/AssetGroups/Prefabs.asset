@@ -17,8 +17,18 @@ MonoBehaviour:
     m_SerializedData: []
   m_GUID: 70c91a941e38aad4bb7d30d6d197e18d
   m_SerializeEntries:
+  - m_GUID: 606e2e01d42163046910cb9fdd0efd6a
+    m_Address: VFX_Flame
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 82ff93c61686a1448ad3b02a81f13df7
     m_Address: Enemy
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9a78bed7ed3d12742bf26547e05395ca
+    m_Address: VFX_HitHead
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -29,6 +39,21 @@ MonoBehaviour:
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: ae7ceacc581abce478ca34508eeb06b6
     m_Address: Ally
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b9ed99194d54fe847b5aed388607f61e
+    m_Address: VFX_FireLine
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c0c2b959ea85bc24c9ec9735db8f5818
+    m_Address: VFX_BulletHole
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: dd7bbbf2f1735f84c9ecf6097b6cb544
+    m_Address: VFX_Dirt
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0

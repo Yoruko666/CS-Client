@@ -2,6 +2,8 @@ using Newtonsoft.Json;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.AddressableAssets;
+using UnityEngine.Pool;
 
 public class WeaponManager : MonoBehaviour
 {
@@ -24,11 +26,6 @@ public class WeaponManager : MonoBehaviour
     [HideInInspector] public List<WeaponInfo> weaponInfos = new();
     private FSMController FSM;
 
-    private GameObject BulletHole;
-    private GameObject VFX_Dirt;
-    private GameObject VFX_Flame;
-    private GameObject VFX_HitHead;
-
     private void Awake()
     {
         mainCamera = Camera.main;
@@ -43,11 +40,6 @@ public class WeaponManager : MonoBehaviour
         AcquireWeapon(2, 12, 24);
         activeWeapon = weaponList[weaponIndex];
         ApplyWeapon(weaponList[weaponIndex]);
-
-        BulletHole = Resources.Load<GameObject>("Prefabs/Impacts/BulletHole");
-        VFX_Dirt = Resources.Load<GameObject>("Prefabs/Impacts/VFX_Dirt");
-        VFX_Flame = Resources.Load<GameObject>("Prefabs/Impacts/VFX_Flame");
-        VFX_HitHead = Resources.Load<GameObject>("Prefabs/Impacts/VFX_HitHead");
     }
 
     private void Update()
@@ -162,15 +154,24 @@ public class WeaponManager : MonoBehaviour
             if (hit.collider.gameObject.layer == LayerMask.NameToLayer("Enemy"))
             {
                 if (hit.collider.GetComponent<BodyCollider>().part == BodyPart.Head)
-                    Instantiate(VFX_HitHead, hit.point, Quaternion.identity);
+                {
+                    VFX hitHead = ObjectPoolManager.Instance.VFXHitHeadPool.Spawn();
+                    hitHead.gameObject.transform.SetPositionAndRotation(hit.point, Quaternion.identity);
+                }
                 else
-                    Instantiate(VFX_Flame, hit.point, Quaternion.identity);
+                {
+                    VFX flame = ObjectPoolManager.Instance.VFXFlamePool.Spawn();
+                    flame.gameObject.transform.SetPositionAndRotation(hit.point, Quaternion.identity);
+                }
             }
             else
             {
-                Instantiate(VFX_Dirt, hit.point, Quaternion.LookRotation(hit.normal));
-                Instantiate(VFX_Flame, hit.point, Quaternion.LookRotation(hit.normal));
-                Instantiate(BulletHole, hit.point + hit.normal * 0.0001f, Quaternion.LookRotation(hit.normal));
+                VFX dirt = ObjectPoolManager.Instance.VFXDirtPool.Spawn();
+                dirt.gameObject.transform.SetPositionAndRotation(hit.point, Quaternion.LookRotation(hit.normal));
+                VFX flame = ObjectPoolManager.Instance.VFXFlamePool.Spawn();
+                flame.gameObject.transform.SetPositionAndRotation(hit.point, Quaternion.LookRotation(hit.normal));
+                VFX bulletHole = ObjectPoolManager.Instance.VFXBulletHolePool.Spawn();
+                bulletHole.gameObject.transform.SetPositionAndRotation(hit.point + hit.normal * 0.0001f, Quaternion.LookRotation(hit.normal));
             }
             endPosition = hit.point;
         }
@@ -179,9 +180,8 @@ public class WeaponManager : MonoBehaviour
 
     private IEnumerator ShowFireLine(Vector3 startPosition, Vector3 endPosition)
     {
-        GameObject VFX_FireLine = Resources.Load<GameObject>("Prefabs/Impacts/VFX_FireLine");
-        VFX_FireLine = Instantiate(VFX_FireLine);
-        LineRenderer lineRenderer = VFX_FireLine.GetComponent<LineRenderer>();
+        GameObject fireLine = ObjectPoolManager.Instance.VFXFireLinePool.Spawn().gameObject;
+        LineRenderer lineRenderer = fireLine.GetComponent<LineRenderer>();
         lineRenderer.SetPosition(0, startPosition);
         lineRenderer.SetPosition(1, endPosition);
         Vector3 nowPosition = startPosition;
@@ -191,7 +191,7 @@ public class WeaponManager : MonoBehaviour
             nowPosition = Vector3.MoveTowards(nowPosition, endPosition, 1000 * Time.deltaTime);
             yield return null;
         }
-        Destroy(VFX_FireLine);
+        ObjectPoolManager.Instance.VFXFireLinePool.Recycle(fireLine.GetComponent<VFX>());
     }
 
     private Coroutine coroutine = null;
