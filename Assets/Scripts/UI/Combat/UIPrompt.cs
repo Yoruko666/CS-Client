@@ -1,7 +1,4 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.AddressableAssets;
 
 public class UIPrompt : MonoBehaviour
 {
@@ -14,24 +11,46 @@ public class UIPrompt : MonoBehaviour
     private void Awake()
     {
         if (instance == null)
+        {
             instance = this;
-        else Destroy(gameObject);
+        }
+        else
+        {
+            Destroy(gameObject);
+            return;
+        }
     }
 
-    public void ShowBuyPrompt()
+    private void OnEnable()
     {
-        buyPrompt.SetActive(true);
+        EventCenter.Subscribe<RoundState>(GameEvents.RoundStateChanged, OnRoundStateChanged);
     }
 
-    public void ShowWonPrompt()
+    private void OnDisable()
     {
-        wonPrompt.SetActive(true);
+        EventCenter.Unsubscribe<RoundState>(GameEvents.RoundStateChanged, OnRoundStateChanged);
     }
 
-    public void ShowLostPrompt()
+    private void OnRoundStateChanged(RoundState s)
     {
-        lostPrompt.SetActive(true);
+        switch (s)
+        {
+            case RoundState.Preparation:
+                RemovePrompts();
+                ShowBuyPrompt();
+                break;
+            case RoundState.InProgress:
+                RemovePrompts();
+                break;
+            case RoundState.RoundOver:
+                // 胜负 prompt 由 MatchManager.Win/Lose 触发，这里不动
+                break;
+        }
     }
+
+    public void ShowBuyPrompt() => buyPrompt.SetActive(true);
+    public void ShowWonPrompt() => wonPrompt.SetActive(true);
+    public void ShowLostPrompt() => lostPrompt.SetActive(true);
 
     public void RemovePrompts()
     {
@@ -40,3 +59,4 @@ public class UIPrompt : MonoBehaviour
         lostPrompt.SetActive(false);
     }
 }
+

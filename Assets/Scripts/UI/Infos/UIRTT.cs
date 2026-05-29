@@ -1,4 +1,3 @@
-using Newtonsoft.Json;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
@@ -50,14 +49,17 @@ public class UIRTT : MonoBehaviour
             tick = pingPoingTick;
             pingTime = Time.time;
             pingPong.tick = pingPoingTick;
-            NetworkManager.SendMessage(MessageType.PingPong, pingPong);
+            NetworkManager.Send(MessageType.PingPong, pingPong);
             pingPoingTick = (++pingPoingTick) % 64;
             received = false;
 
             text.text = $"{RTT} ms";
-            if(RTT < 100) text.color = Color.green;
-            else if(RTT < 200) text.color = Color.yellow;
+            if (RTT < 100) text.color = Color.green;
+            else if (RTT < 200) text.color = Color.yellow;
             else text.color = Color.red;
+
+            // 暴露给其它感兴趣的系统：网络质量警告、掉线模糊、远程插值缓冲调节等
+            EventCenter.Invoke(GameEvents.RttUpdated, RTT);
         }
     }
 

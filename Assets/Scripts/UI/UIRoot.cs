@@ -16,6 +16,22 @@ public class UIRoot : MonoBehaviour
         else Destroy(gameObject);
     }
 
+    private void OnEnable()
+    {
+        EventCenter.Subscribe<RoundState>(GameEvents.RoundStateChanged, OnRoundStateChanged);
+    }
+
+    private void OnDisable()
+    {
+        EventCenter.Unsubscribe<RoundState>(GameEvents.RoundStateChanged, OnRoundStateChanged);
+    }
+
+    private void OnRoundStateChanged(RoundState s)
+    {
+        // 进入战斗阶段时强制关闭商店面板
+        if (s == RoundState.InProgress) CloseShopPanel();
+    }
+
     void Start()
     {
         Cursor.lockState = CursorLockMode.Locked;

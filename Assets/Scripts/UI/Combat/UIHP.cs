@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 
@@ -8,14 +6,27 @@ public class UIHP : MonoBehaviour
     private TextMeshProUGUI text;
     private PlayerState playerState;
 
-    void Start()
+    private void Start()
     {
         text = GetComponent<TextMeshProUGUI>();
-        playerState = NetworkManager.instance.localPlayer.GetComponent<PlayerState>();
-    }
-
-    private void Update()
-    {
+        playerState = NetworkManager.instance.LocalEntity.state;
+        // 首帧立刻显示一次
         text.text = playerState.HP.ToString();
     }
+
+    private void OnEnable()
+    {
+        EventCenter.Subscribe<int>(GameEvents.LocalPlayerHpChanged, OnHpChanged);
+    }
+
+    private void OnDisable()
+    {
+        EventCenter.Unsubscribe<int>(GameEvents.LocalPlayerHpChanged, OnHpChanged);
+    }
+
+    private void OnHpChanged(int newHp)
+    {
+        if (text != null) text.text = newHp.ToString();
+    }
 }
+

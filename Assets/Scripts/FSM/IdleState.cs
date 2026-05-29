@@ -10,12 +10,32 @@ public class IdleState : IState
 
     public override void Update()
     {
-        if ((Input.GetKeyDown(KeyCode.R) || FSM.weaponController.ammoNum == 0) && FSM.weaponController.ammoReserve > 0 && FSM.weaponController.ammoReserve > 0 && FSM.weaponController.ammoNum < FSM.weaponController.weaponConfig.magazineCapacity) 
+        var w = FSM.weaponController;
+        var cfg = w.weaponConfig;
+
+        bool reloadInput = Input.GetKeyDown(KeyCode.R) || w.ammoNum == 0;
+        bool hasReserve = w.ammoReserve > 0;
+        bool magNotFull = w.ammoNum < cfg.magazineCapacity;
+        if (reloadInput && hasReserve && magNotFull)
+        {
             FSM.SwitchState(States.Reload);
-        if (Input.GetKeyDown(KeyCode.Mouse1) && FSM.weaponController.weaponConfig.hasAim)
+            return;
+        }
+
+        if (Input.GetKeyDown(KeyCode.Mouse1) && cfg.hasAim)
+        {
             FSM.SwitchState(States.Aim);
-        if (GameManager.instance.isMainScene && FSM.weaponController.ammoNum > 0 && FSM.fireCold <= 0 && (Input.GetKey(KeyCode.Mouse0) && FSM.weaponController.weaponConfig.isAuto || Input.GetKeyDown(KeyCode.Mouse0) && !FSM.weaponController.weaponConfig.isAuto))
+            return;
+        }
+
+        bool canFire = GameManager.instance.isMainScene && w.ammoNum > 0 && FSM.fireCold <= 0;
+        bool firePressed = cfg.isAuto
+            ? Input.GetKey(KeyCode.Mouse0)
+            : Input.GetKeyDown(KeyCode.Mouse0);
+        if (canFire && firePressed)
+        {
             FSM.SwitchState(States.Fire);
+        }
     }
 
     public override void OnStateEnter()

@@ -1,9 +1,7 @@
-using Newtonsoft.Json;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
-using UnityEngine.Pool;
 
 public class WeaponManager : MonoBehaviour
 {
@@ -20,11 +18,45 @@ public class WeaponManager : MonoBehaviour
     private float upAngle = 0;
     private float firingTime = 0;
 
+    /// <summary>武器槽：[0]=Handgun (副武器)，[1]=MainGun (主武器)。</summary>
+    private const int SLOT_HANDGUN = 0;
+    private const int SLOT_MAINGUN = 1;
+    private GameObject[] weapons = new GameObject[2];
+
     [HideInInspector] public GameObject activeWeapon;
     [HideInInspector] public int weaponIndex = 0;
-    [HideInInspector] public List<GameObject> weaponList = new();
-    [HideInInspector] public List<WeaponInfo> weaponInfos = new();
     private FSMController FSM;
+
+    /// <summary>外部脚本仍可能查这个数量；通过非 null 槽位计算。</summary>
+    public int WeaponCount
+    {
+        get
+        {
+            int n = 0;
+            if (weapons[SLOT_HANDGUN] != null) n++;
+            if (weapons[SLOT_MAINGUN] != null) n++;
+            return n;
+        }
+    }
+
+    /// <summary>
+    /// 兼容旧 API：UI 等外部脚本仍按"列表"读取武器槽位。
+    /// 注意：这是一个"快照"，每次访问会构造新 List；外部不要在 hot path 频繁调用，
+    /// 也不要修改返回的 List（修改不会影响内部状态）。
+    /// </summary>
+    public List<GameObject> weaponList
+    {
+        get
+        {
+            var list = new List<GameObject>(2);
+            if (weapons[SLOT_HANDGUN] != null) list.Add(weapons[SLOT_HANDGUN]);
+            if (weapons[SLOT_MAINGUN] != null) list.Add(weapons[SLOT_MAINGUN]);
+            return list;
+        }
+    }
+
+    /// <summary>按槽位直接获取武器（推荐使用）。</summary>
+    public GameObject GetWeapon(int slot) => weapons[slot];
 
     private void Awake()
     {
@@ -38,13 +70,11 @@ public class WeaponManager : MonoBehaviour
         playerCenter = transform.Find("Center");
         FSM = new FSMController(this);
         AcquireWeapon(2, 12, 24);
-        activeWeapon = weaponList[weaponIndex];
-        ApplyWeapon(weaponList[weaponIndex]);
     }
 
     private void Update()
     {
-        SwitchWeapon();
+        HandleSwitchInput();
         FSM.Update();
     }
 
@@ -65,52 +95,43 @@ public class WeaponManager : MonoBehaviour
         mainCamera.transform.rotation = playerCenter.rotation * Quaternion.Euler(-upAngle, 0, 0);
     }
 
-    public void UpdatePlayerState(ref PlayerStateInfo playerState)
-    {
-        
-    }
+    public void UpdatePlayerState(ref PlayerStateInfo playerState) { }
 
     public void Initialize()
     {
-        weaponIndex = 0;
+        // 副武器复位
         AcquireWeapon(2, 12, 24);
-        if (weaponList.Count > 1)
+        // 如果之前有主武器，重新刷弹给它
+        if (weapons[SLOT_MAINGUN] != null)
         {
-            weaponIndex = 1;
-            WeaponConfig weaponConfig = weaponList[1].GetComponent<WeaponController>().weaponConfig;
-            AcquireWeapon(weaponConfig.id, weaponConfig.magazineCapacity, weaponConfig.magazineCapacity * 2);
-            ApplyWeapon(weaponList[weaponIndex]);
+            WeaponConfig cfg = weapons[SLOT_MAINGUN].GetComponent<WeaponController>().weaponConfig;
+            AcquireWeapon(cfg.id, cfg.magazineCapacity, cfg.magazineCapacity * 2);
         }
     }
 
-    public void SwitchWeapon()
+    /// <summary>响应鼠标滚轮切换武器。</summary>
+    private void HandleSwitchInput()
     {
-        if (Input.mouseScrollDelta.y < 0)
-        {
-            if (weaponIndex < weaponList.Count - 1)
-            {
-                weaponIndex++;
-                ApplyWeapon(weaponList[weaponIndex]);
-                PlayerSwitchWeapon playerSwitchWeapon = new PlayerSwitchWeapon(NetworkManager.instance.playerName, weaponIndex);
-                NetworkManager.SendMessage(MessageType.SwitchWeapon, playerSwitchWeapon);
-            }
-        }
-        if (Input.mouseScrollDelta.y > 0)
-        {
-            if (weaponIndex > 0)
-            {
-                weaponIndex--;
-                ApplyWeapon(weaponList[weaponIndex]);
-                PlayerSwitchWeapon playerSwitchWeapon = new PlayerSwitchWeapon(NetworkManager.instance.playerName, weaponIndex);
-                NetworkManager.SendMessage(MessageType.SwitchWeapon, playerSwitchWeapon);
-            }
-        }
-        
+        float scroll = Input.mouseScrollDelta.y;
+        if (scroll == 0) return;
+
+        // 滚轮向下 -> 切到下一个槽位（0->1），向上 -> 切到上一个槽位（1->0）
+        int target = scroll < 0 ? SLOT_MAINGUN : SLOT_HANDGUN;
+        if (target == weaponIndex || weapons[target] == null) return;
+
+        weaponIndex = target;
+        ApplyWeapon(weapons[weaponIndex]);
+        var msg = new PlayerSwitchWeapon(NetworkManager.instance.playerName, weaponIndex);
+        NetworkManager.Send(MessageType.SwitchWeapon, msg);
     }
 
     public void ApplyWeapon(GameObject weapon)
-    { 
-        if(activeWeapon)
+    {
+        // 切武器时停掉旧武器相关的所有协程，避免飞线、瞄准协程串到新武器上
+        StopAllCoroutines();
+        aimCoroutine = null;
+
+        if (activeWeapon != null && activeWeapon != weapon)
             activeWeapon.SetActive(false);
         activeWeapon = weapon;
         WeaponController weaponController = weapon.GetComponent<WeaponController>();
@@ -148,9 +169,10 @@ public class WeaponManager : MonoBehaviour
         fireDirection = Quaternion.AngleAxis(horizontalOffset, playerRotation * Vector3.up) * fireDirection;
 
         PlayerFire playerFire = new(NetworkManager.instance.playerName, seed);
-        NetworkManager.SendMessage(MessageType.Fire, playerFire);
+        NetworkManager.Send(MessageType.Fire, playerFire);
 
-        if (Physics.Raycast(center, fireDirection, out RaycastHit hit, 100f, ~(1 << playerLayer | 1 << CCLayer))){
+        if (Physics.Raycast(center, fireDirection, out RaycastHit hit, 100f, ~(1 << playerLayer | 1 << CCLayer)))
+        {
             if (hit.collider.gameObject.layer == LayerMask.NameToLayer("Enemy"))
             {
                 if (hit.collider.GetComponent<BodyCollider>().part == BodyPart.Head)
@@ -185,21 +207,23 @@ public class WeaponManager : MonoBehaviour
         lineRenderer.SetPosition(0, startPosition);
         lineRenderer.SetPosition(1, endPosition);
         Vector3 nowPosition = startPosition;
-        while(nowPosition != endPosition)
+        // 安全保护：超过 0.5 秒强制结束（防止协程在异常状态下残留）
+        float timeout = 0.5f;
+        while (nowPosition != endPosition && timeout > 0)
         {
             lineRenderer.SetPosition(0, nowPosition);
             nowPosition = Vector3.MoveTowards(nowPosition, endPosition, 1000 * Time.deltaTime);
+            timeout -= Time.deltaTime;
             yield return null;
         }
         ObjectPoolManager.Instance.VFXFireLinePool.Recycle(fireLine.GetComponent<VFX>());
     }
 
-    private Coroutine coroutine = null;
+    private Coroutine aimCoroutine = null;
     public void AimEnter(float zoom)
     {
-        if (coroutine != null)
-            StopCoroutine(coroutine);
-        coroutine = StartCoroutine(AimEnterHorizon(zoom));
+        if (aimCoroutine != null) StopCoroutine(aimCoroutine);
+        aimCoroutine = StartCoroutine(AimEnterHorizon(zoom));
     }
     private IEnumerator AimEnterHorizon(float zoom)
     {
@@ -215,9 +239,8 @@ public class WeaponManager : MonoBehaviour
 
     public void AimExit()
     {
-        if (coroutine != null)
-            StopCoroutine(coroutine);
-        coroutine = StartCoroutine(AimExitHorizon());
+        if (aimCoroutine != null) StopCoroutine(aimCoroutine);
+        aimCoroutine = StartCoroutine(AimExitHorizon());
     }
     private IEnumerator AimExitHorizon()
     {
@@ -234,42 +257,31 @@ public class WeaponManager : MonoBehaviour
     public void PurchaseWeapon(int id)
     {
         WeaponConfig weaponConfig = WeaponDic.instance.weaponDic[id];
-        transform.GetComponent<PlayerState>().Cost(weaponConfig.price);
+        GetComponent<PlayerState>().Cost(weaponConfig.price);
         AcquireWeapon(id, weaponConfig.magazineCapacity, weaponConfig.magazineCapacity * 2);
     }
 
     public void AcquireWeapon(int id, int ammoNum, int ammoReserve)
     {
-        GameObject weapon = Instantiate(WeaponDic.instance.weaponDic[id].weaponPrefab, hand);
-        weapon.GetComponent<WeaponController>().Initialize(NetworkManager.instance.localPlayer.transform);
-        weapon.GetComponent<WeaponController>().playerCenter = playerCenter;
-        int layer = LayerMask.NameToLayer("Arm");
-        Transform[] children = weapon.GetComponentsInChildren<Transform>(true);
-        foreach (Transform t in children)
-            t.gameObject.layer = layer;
-        weapon.GetComponent<WeaponController>().SetAmmo(ammoNum, ammoReserve);
-        if (weapon.GetComponent<WeaponController>().weaponConfig.weaponType == WeaponType.MainGun)
-        {
-            if (weaponList.Count > 1)
-            {
-                Destroy(weaponList[1]);
-                weaponList[1] = weapon;
-            }
-            else  weaponList.Add(weapon);
-            weaponIndex = 1;
-        }
-        else
-        {
-            if(weaponList.Count > 0)
-                Destroy(weaponList[0]);
-            else weaponList.Add(weapon);
-            weaponList[0] = weapon;
-        }
+        var cfg = WeaponDic.instance.weaponDic[id];
+        int slot = cfg.weaponType == WeaponType.MainGun ? SLOT_MAINGUN : SLOT_HANDGUN;
+
+        GameObject weapon = Instantiate(cfg.weaponPrefab, hand);
+        var ctrl = weapon.GetComponent<WeaponController>();
+        ctrl.Initialize(NetworkManager.instance.localPlayer.transform);
+        ctrl.playerCenter = playerCenter;
+        ctrl.SetAmmo(ammoNum, ammoReserve);
+
+        int armLayer = LayerMask.NameToLayer("Arm");
+        foreach (Transform t in weapon.GetComponentsInChildren<Transform>(true))
+            t.gameObject.layer = armLayer;
+
+        // 替换槽位：旧武器销毁 + 新武器入位
+        if (weapons[slot] != null) Destroy(weapons[slot]);
+        weapons[slot] = weapon;
+        weaponIndex = slot;
         ApplyWeapon(weapon);
     }
 
-    public void ApplyPlayerState(PlayerStateInfo playerState)
-    {
-
-    }
+    public void ApplyPlayerState(PlayerStateInfo playerState) { }
 }

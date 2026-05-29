@@ -13,18 +13,32 @@ public class NetworkManager : MonoBehaviour
 {
     public int id, team;
     public string playerName;
-    private string infoPlayerName;
 
     private static UdpClient udpClient;
     private static IPEndPoint serverEndPoint;
     private static ConcurrentQueue<(MessageType, string)> messageList = new();
 
-    public Dictionary<string, GameObject> playerPool = new();
+    /// <summary>所有远程玩家（不含自己）的实体容器，key = playerName。</summary>
+    public Dictionary<string, PlayerEntity> playerPool = new();
 
+    /// <summary>本地玩家 GameObject（在 Inspector 中拖入）。</summary>
     public GameObject localPlayer;
+
+    /// <summary>本地玩家实体（对 localPlayer 的组件缓存包装），首次访问时创建。</summary>
+    private PlayerEntity _localEntity;
+    public PlayerEntity LocalEntity
+    {
+        get
+        {
+            if (_localEntity == null && localPlayer != null)
+                _localEntity = PlayerEntity.CreateLocal(localPlayer, playerName, id, team);
+            return _localEntity;
+        }
+    }
+
     public static NetworkManager instance;
 
-    private int tick;
+    private uint tick;
     private float tickTimer;
     public readonly static float TICK_INTERVAL = 1f / 128f;
     private readonly static int BUFFER_SIZE = 1024;
@@ -32,6 +46,14 @@ public class NetworkManager : MonoBehaviour
 
     private PlayerInputInfo[] inputBuffer = new PlayerInputInfo[BUFFER_SIZE];
     private PlayerStateInfo[] stateBuffer = new PlayerStateInfo[BUFFER_SIZE];
+
+    // 消息处理器注册表
+    private Dictionary<MessageType, Action<string>> handlers;
+
+    // ============ 资源缓存（避免 hot path 反复加载 / 查找） ============
+    private GameObject _enemyPrefab;
+
+    private static int IndexOf(uint t) => (int)(t % (uint)BUFFER_SIZE);
 
     private void Awake()
     {
@@ -43,6 +65,26 @@ public class NetworkManager : MonoBehaviour
         else Destroy(gameObject);
 
         playerName = NetworkConfigManager.instance.uid;
+        RegisterHandlers();
+    }
+
+    private void RegisterHandlers()
+    {
+        handlers = new Dictionary<MessageType, Action<string>>
+        {
+            { MessageType.Start,           OnStart           },
+            { MessageType.GameProgress,    OnGameProgress    },
+            { MessageType.AllPlayersInfo,  OnAllPlayersInfo  },
+            { MessageType.Fire,            OnFire            },
+            { MessageType.Reload,          OnReload          },
+            { MessageType.PurchaseWeapon,  OnPurchaseWeapon  },
+            { MessageType.AcquireWeapon,   OnAcquireWeapon   },
+            { MessageType.SwitchWeapon,    OnSwitchWeapon    },
+            { MessageType.Kill,            OnKill            },
+            { MessageType.Hit,             OnHit             },
+            { MessageType.RoundEnd,        OnRoundEnd        },
+            { MessageType.PingPong,        OnPingPong        },
+        };
     }
 
     private void Start()
@@ -52,7 +94,7 @@ public class NetworkManager : MonoBehaviour
         udpClient = new UdpClient(0);
         serverEndPoint = new IPEndPoint(IPAddress.Parse(NetworkConfigManager.instance.serverAddress), NetworkConfigManager.instance.serverPort);
 
-        SendMessage(MessageType.Connect, new PlayerConnect(playerName));
+        Send(MessageType.Connect, new PlayerConnect(playerName));
 
         Thread receiveThread = new(new ThreadStart(ReceiveMessage));
         receiveThread.Start();
@@ -60,159 +102,206 @@ public class NetworkManager : MonoBehaviour
 
     private void Update()
     {
-        while(messageList.TryDequeue(out var data))
+        while (messageList.TryDequeue(out var data))
         {
-            GameObject player;
-            string msg = data.Item2;
-            switch (data.Item1)
+            if (handlers.TryGetValue(data.Item1, out var handler))
             {
-                case MessageType.Start:
-                    HallManager.instance.StartGame();
-                    MatchManager.instance.StartGame();
-
-                    List<PlayerStateInfo> playersInfo = JsonConvert.DeserializeObject<List<PlayerStateInfo>>(msg);
-                    MatchManager.instance.playerNum = playersInfo.Count;
-                    for(int i = 0; i < playersInfo.Count; i++)
-                    {
-                        PlayerStateInfo playerState = playersInfo[i];
-                        if (playerState.playerName.Equals(playerName))
-                        {
-                            id = playerState.id;
-                            team = playerState.team;
-                            PlayerController.instance.Initialize();
-                        }
-                        else
-                        {
-                            Addressables.LoadAssetAsync<GameObject>("Enemy").Completed += (obj) =>
-                            {
-                                player = Instantiate(obj.Result);
-                                playerPool.Add(playerState.playerName, player);
-                                player.GetComponent<TPPlayerController>().Initialize(playerState.playerName, playerState.id);
-                            };
-                        }
-                    }
-                    break;
-
-                case MessageType.GameProgress:
-                    GameProgress gameProgress = JsonConvert.DeserializeObject<GameProgress>(msg);
-                    MatchManager.instance.SwitchProgress(gameProgress.progress);
-                    break;
-
-                case MessageType.AllPlayersInfo:
-                    playersInfo = JsonConvert.DeserializeObject<List<PlayerStateInfo>>(msg);
-                    foreach (PlayerStateInfo playerState in playersInfo)
-                    {
-                        infoPlayerName = playerState.playerName;
-                        if (infoPlayerName == playerName)
-                        {
-                            localPlayer.GetComponent<PlayerState>().ApplyPlayerState(playerState);
-                            localPlayer.GetComponent<WeaponManager>().ApplyPlayerState(playerState);
-                            if (!CheckSync(stateBuffer[playerState.tick], playerState))
-                            {
-                                ++reconciliationTime;
-                                PlayerController playerController = localPlayer.GetComponent<PlayerController>();
-                                playerController.ApplyPlayerState(playerState);
-                                int reconcileTick = playerState.tick + 1;
-                                while (reconcileTick < tick)
-                                {
-                                    playerController.ProcessInput(inputBuffer[reconcileTick]);
-                                    stateBuffer[reconcileTick] = playerController.currentState;
-                                    reconcileTick = (++reconcileTick) % BUFFER_SIZE;
-                                }
-                            }
-                        }
-                        else
-                        {
-                            if (playerPool.ContainsKey(infoPlayerName) && playerPool[infoPlayerName] != null)
-                            {
-                                player = playerPool[infoPlayerName];
-                                player.GetComponent<TPPlayerController>().ApplyPlayerState(playerState);
-                            }
-                        }
-                    }
-                    break;
-
-                case MessageType.Fire:
-                    PlayerFire playerFire = JsonConvert.DeserializeObject<PlayerFire>(msg);
-                    infoPlayerName = playerFire.playerName;
-                    if (infoPlayerName != playerName)
-                        playerPool[infoPlayerName].GetComponent<TPWeaponManager>().Fire(playerFire.GetHitPoint());
-                    break;
-
-                case MessageType.Reload:
-                    PlayerReload playerReload = JsonConvert.DeserializeObject<PlayerReload>(msg);
-                    infoPlayerName = playerReload.playerName;
-                    if (infoPlayerName != playerName)
-                        playerPool[infoPlayerName].GetComponent<TPWeaponManager>().Reload();
-                    break;
-
-                case MessageType.PurchaseWeapon:
-                    PlayerPurchaseWeapon playerPurchaseWeapon = JsonConvert.DeserializeObject<PlayerPurchaseWeapon>(msg);
-                    infoPlayerName = playerPurchaseWeapon.playerName;
-                    int weaponIid = playerPurchaseWeapon.id;
-                    if (playerName == infoPlayerName)
-                    {
-                        localPlayer.GetComponent<WeaponManager>().PurchaseWeapon(weaponIid);
-                    }
-                    break;
-
-                case MessageType.AcquireWeapon:
-                    PlayerAcquireWeapon playerAcquireWeapon = JsonConvert.DeserializeObject<PlayerAcquireWeapon>(msg);
-                    infoPlayerName = playerAcquireWeapon.playerName;
-                    if (infoPlayerName != playerName)
-                        playerPool[infoPlayerName].GetComponent<TPWeaponManager>().AcquireWeapon(playerAcquireWeapon.id);
-                    break;
-
-                case MessageType.SwitchWeapon:
-                    PlayerSwitchWeapon playerSwitchWeapon = JsonConvert.DeserializeObject<PlayerSwitchWeapon>(msg);
-                    infoPlayerName = playerSwitchWeapon.playerName;
-                    if (infoPlayerName != playerName)
-                        playerPool[infoPlayerName].GetComponent<TPWeaponManager>().SwitchWeapon(playerSwitchWeapon.index);
-                    break;
-
-                case MessageType.Kill:
-                    PlayerKill playerKill = JsonConvert.DeserializeObject<PlayerKill>(msg);
-                    if(playerName == playerKill.playerKillName)
-                    {
-                        playerPool[playerKill.playerDieName].GetComponent<TPPlayerController>().Die();
-                        AudioClip killAudio = Addressables.LoadAssetAsync<AudioClip>("Kill1").WaitForCompletion();
-                        AudioManager.instance.PlayAudio(killAudio);
-                        UIKillBanner.instance.ShowKillBanner(playerKill.shotHead);
-                    }
-                    if(playerName == playerKill.playerDieName)
-                    {
-                        localPlayer.GetComponent<PlayerController>().Die();
-                    }
-                    UIKillInfos.instance.AddKillInofo(playerKill.playerKillName, playerKill.playerDieName, playerKill.weaponId, playerKill.shotHead);
-                    break;
-
-                case MessageType.Hit:
-                    Hit hit = JsonConvert.DeserializeObject<Hit>(msg);
-                    Transform indicators = GameObject.Find("Canvas/Indicator").transform;
-                    GameObject hitIndicator = Instantiate(Resources.Load<GameObject>("Prefabs/UI/HitIndicator"), indicators);
-                    hitIndicator.GetComponent<UIHitIndicator>().Initialize(hit.GetPosition());
-                    break;
-
-                case MessageType.RoundEnd:
-                    RoundEnd roundEnd = JsonConvert.DeserializeObject<RoundEnd>(msg);
-                    if (roundEnd.winTeam == team)
-                        MatchManager.instance.Win();
-                    else MatchManager.instance.Lose();
-                    break;
-
-                case MessageType.PingPong:
-                    PingPong pingPong = JsonConvert.DeserializeObject<PingPong>(msg);
-                    UIRTT.instance.ReceivePong(pingPong.tick);
-                    break;
+                try { handler(data.Item2); }
+                catch (Exception ex) { Debug.LogException(ex); }
+            }
+            else
+            {
+                Debug.LogWarning($"No handler for message type: {data.Item1}");
             }
         }
+
         tickTimer += Time.deltaTime;
-        while(tickTimer >= TICK_INTERVAL)
+        while (tickTimer >= TICK_INTERVAL)
         {
             tickTimer -= TICK_INTERVAL;
             HandleTick();
-            tick = (++tick) % BUFFER_SIZE;
+            tick++;
         }
+    }
+
+    // ============ Message Handlers ============
+
+    private void OnStart(string msg)
+    {
+        HallManager.instance.StartGame();
+        MatchManager.instance.StartGame();
+
+        var playersInfo = JsonConvert.DeserializeObject<List<PlayerStateInfo>>(msg);
+        MatchManager.instance.playerNum = playersInfo.Count;
+
+        // 一次性预加载敌人 prefab。
+        // 同步加载，确保 playerPool 在收到 AllPlayersInfo / Fire 等消息前已就绪。
+        if (_enemyPrefab == null)
+            _enemyPrefab = Addressables.LoadAssetAsync<GameObject>("Enemy").WaitForCompletion();
+
+        for (int i = 0; i < playersInfo.Count; i++)
+        {
+            PlayerStateInfo playerState = playersInfo[i];
+            if (playerState.playerName.Equals(playerName))
+            {
+                id = playerState.id;
+                team = playerState.team;
+                _ = LocalEntity;     // 触发 LocalEntity 懒加载
+                PlayerController.instance.Initialize();
+            }
+            else
+            {
+                GameObject enemy = Instantiate(_enemyPrefab);
+                var entity = PlayerEntity.CreateRemote(enemy, playerState.playerName, playerState.id, playerState.team);
+                playerPool[playerState.playerName] = entity;
+                entity.tp.Initialize(playerState.playerName, playerState.id);
+            }
+        }
+    }
+
+    private void OnGameProgress(string msg)
+    {
+        var gameProgress = JsonConvert.DeserializeObject<GameProgress>(msg);
+        MatchManager.instance.SwitchProgress(gameProgress.progress);
+    }
+
+    private void OnAllPlayersInfo(string msg)
+    {
+        var playersInfo = JsonConvert.DeserializeObject<List<PlayerStateInfo>>(msg);
+        foreach (PlayerStateInfo playerState in playersInfo)
+        {
+            string name = playerState.playerName;
+            if (name == playerName)
+            {
+                ApplyLocalPlayerState(playerState);
+            }
+            else if (playerPool.TryGetValue(name, out var entity) && entity?.tp != null)
+            {
+                entity.tp.EnqueueSnapshot(playerState);
+            }
+        }
+    }
+
+    /// <summary>本地玩家状态校正 + 必要时回滚重模拟</summary>
+    private void ApplyLocalPlayerState(PlayerStateInfo playerState)
+    {
+        var local = LocalEntity;
+        local.state.ApplyPlayerState(playerState);
+        local.weapon.ApplyPlayerState(playerState);
+
+        // 服务端回传的 tick 是已经 mod BUFFER_SIZE 的值
+        int serverIdx = ((playerState.tick % BUFFER_SIZE) + BUFFER_SIZE) % BUFFER_SIZE;
+        if (CheckSync(stateBuffer[serverIdx], playerState)) return;
+
+        ++reconciliationTime;
+        local.fp.ApplyPlayerState(playerState);
+
+        // 用 uint 减法的回绕特性计算需要重新模拟的 tick 段
+        uint serverTick = RecoverLogicTick(playerState.tick);
+        uint catchup = tick - serverTick - 1;
+        if (catchup > BUFFER_SIZE) catchup = 0;        // 防御：差距过大说明数据异常
+        for (uint i = 0; i < catchup; i++)
+        {
+            uint t = serverTick + 1 + i;
+            int idx = IndexOf(t);
+            if (inputBuffer[idx] == null) continue;
+            local.fp.ProcessInput(inputBuffer[idx]);
+            stateBuffer[idx] = local.fp.currentState;
+        }
+    }
+
+    private void OnFire(string msg)
+    {
+        var playerFire = JsonConvert.DeserializeObject<PlayerFire>(msg);
+        if (playerFire.playerName != playerName
+            && playerPool.TryGetValue(playerFire.playerName, out var entity) && entity?.tpWeapon != null)
+            entity.tpWeapon.Fire(playerFire.GetHitPoint());
+    }
+
+    private void OnReload(string msg)
+    {
+        var playerReload = JsonConvert.DeserializeObject<PlayerReload>(msg);
+        if (playerReload.playerName != playerName
+            && playerPool.TryGetValue(playerReload.playerName, out var entity) && entity?.tpWeapon != null)
+            entity.tpWeapon.Reload();
+    }
+
+    private void OnPurchaseWeapon(string msg)
+    {
+        var playerPurchaseWeapon = JsonConvert.DeserializeObject<PlayerPurchaseWeapon>(msg);
+        if (playerPurchaseWeapon.playerName == playerName)
+        {
+            LocalEntity.weapon.PurchaseWeapon(playerPurchaseWeapon.id);
+        }
+    }
+
+    private void OnAcquireWeapon(string msg)
+    {
+        var playerAcquireWeapon = JsonConvert.DeserializeObject<PlayerAcquireWeapon>(msg);
+        if (playerAcquireWeapon.playerName != playerName
+            && playerPool.TryGetValue(playerAcquireWeapon.playerName, out var entity) && entity?.tpWeapon != null)
+            entity.tpWeapon.AcquireWeapon(playerAcquireWeapon.id);
+    }
+
+    private void OnSwitchWeapon(string msg)
+    {
+        var playerSwitchWeapon = JsonConvert.DeserializeObject<PlayerSwitchWeapon>(msg);
+        if (playerSwitchWeapon.playerName != playerName
+            && playerPool.TryGetValue(playerSwitchWeapon.playerName, out var entity) && entity?.tpWeapon != null)
+            entity.tpWeapon.SwitchWeapon(playerSwitchWeapon.index);
+    }
+
+    private void OnKill(string msg)
+    {
+        var playerKill = JsonConvert.DeserializeObject<PlayerKill>(msg);
+
+        // 这一段必须留在 NetworkManager —— 因为只有它直接持有 playerPool / LocalEntity。
+        if (playerName == playerKill.playerKillName
+            && playerPool.TryGetValue(playerKill.playerDieName, out var dieEntity)
+            && dieEntity?.tp != null)
+        {
+            dieEntity.tp.Die();
+        }
+        if (playerName == playerKill.playerDieName)
+        {
+            LocalEntity.fp.Die();
+        }
+
+        // 其余响应（Banner / 击杀信息条 / 音效 / 未来的连杀提示等）由订阅者各自处理
+        EventCenter.Invoke(GameEvents.PlayerKilled, playerKill);
+    }
+
+    private void OnHit(string msg)
+    {
+        var hit = JsonConvert.DeserializeObject<Hit>(msg);
+        EventCenter.Invoke(GameEvents.LocalPlayerHit, hit);
+    }
+
+    private void OnRoundEnd(string msg)
+    {
+        var roundEnd = JsonConvert.DeserializeObject<RoundEnd>(msg);
+        if (roundEnd.winTeam == team) MatchManager.instance.Win();
+        else MatchManager.instance.Lose();
+    }
+
+    private void OnPingPong(string msg)
+    {
+        var pingPong = JsonConvert.DeserializeObject<PingPong>(msg);
+        UIRTT.instance.ReceivePong(pingPong.tick);
+    }
+
+    /// <summary>
+    /// 服务端回传的 tick 是客户端发送时的 inputInfo.tick（int，已 mod BUFFER_SIZE）。
+    /// 这里把它恢复成"最近一次的 logic tick（uint，永不回绕）"。
+    /// 利用 uint 减法的回绕特性，即使 logic tick 跨过 uint.MaxValue 也正确。
+    /// </summary>
+    private uint RecoverLogicTick(int moddedTick)
+    {
+        uint cur = tick;
+        uint curMod = cur % (uint)BUFFER_SIZE;
+        // 在 mod 域内向后倒退多少步可以到达 moddedTick
+        uint diff = (curMod - (uint)moddedTick) % (uint)BUFFER_SIZE;
+        return cur - diff;     // uint 减法天然回绕
     }
 
     private void OnApplicationQuit()
@@ -222,26 +311,25 @@ public class NetworkManager : MonoBehaviour
 
     private void HandleTick()
     {
-        PlayerController playerController = localPlayer.GetComponent<PlayerController>();
-        if (playerController.isDie) return;
+        var local = LocalEntity;
+        if (local == null || local.fp.isDie) return;
 
-        PlayerInputInfo inputInfo = playerController.GetInputInfo();
-        playerController.ProcessInput(inputInfo);
-
-        WeaponManager weaponManager = localPlayer.GetComponent<WeaponManager>();
-        weaponManager.HandleTick();
+        PlayerInputInfo inputInfo = local.fp.GetInputInfo();
+        local.fp.ProcessInput(inputInfo);
+        local.weapon.HandleTick();
 
         PlayerStateInfo state = new();
-        playerController.UpdatePlayerState(ref state);
-        weaponManager.UpdatePlayerState(ref state);
+        local.fp.UpdatePlayerState(ref state);
+        local.weapon.UpdatePlayerState(ref state);
 
-        inputInfo.tick = tick;
-        inputBuffer[tick] = inputInfo;
-        stateBuffer[tick] = state;
-        SendMessage(MessageType.InputInfo, inputInfo);
+        inputInfo.tick = (int)(tick % (uint)BUFFER_SIZE);
+        int slot = IndexOf(tick);
+        inputBuffer[slot] = inputInfo;
+        stateBuffer[slot] = state;
+        Send(MessageType.InputInfo, inputInfo);
     }
 
-    public static void SendMessage<T>(MessageType type, T data)
+    public static void Send<T>(MessageType type, T data)
     {
         try
         {
@@ -271,7 +359,7 @@ public class NetworkManager : MonoBehaviour
 
     public static void ReceiveMessage()
     {
-        while(udpClient != null)
+        while (udpClient != null)
         {
             try
             {
@@ -296,9 +384,22 @@ public class NetworkManager : MonoBehaviour
                 string str = Encoding.UTF8.GetString(data, 8, data.Length - 8);
                 messageList.Enqueue((type, str));
             }
+            catch (ObjectDisposedException)
+            {
+                // 应用退出时 udpClient.Close() 会触发，正常情况
+                break;
+            }
             catch (SocketException ex)
             {
-                Debug.Log("Socket error");
+                // 应用退出时也可能抛 Interrupted，平静退出
+                if (ex.SocketErrorCode == SocketError.Interrupted ||
+                    ex.SocketErrorCode == SocketError.OperationAborted)
+                    break;
+                Debug.LogWarning($"recv socket error: {ex.SocketErrorCode}");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogException(ex);
             }
         }
     }

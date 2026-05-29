@@ -1,4 +1,3 @@
-using Newtonsoft.Json;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
@@ -13,14 +12,30 @@ public class UIWeaponShop : MonoBehaviour
 
     private void Start()
     {
-        playerState = NetworkManager.instance.localPlayer.GetComponent<PlayerState>();
-        weaponManager = NetworkManager.instance.localPlayer.GetComponent<WeaponManager>();
+        var local = NetworkManager.instance.LocalEntity;
+        playerState = local.state;
+        weaponManager = local.weapon;
         goldNum = transform.Find("Gold/GoldNum").GetComponent<TextMeshProUGUI>();
+        // 进入面板时刷一次（订阅是事件驱动，但首次显示需要立刻有值）
+        goldNum.text = playerState.gold.ToString();
     }
 
-    private void Update()
+    private void OnEnable()
     {
-        goldNum.text = playerState.gold.ToString();
+        EventCenter.Subscribe<int>(GameEvents.LocalPlayerGoldChanged, OnGoldChanged);
+        // 面板被重新打开时主动同步一次显示
+        if (playerState != null && goldNum != null)
+            goldNum.text = playerState.gold.ToString();
+    }
+
+    private void OnDisable()
+    {
+        EventCenter.Unsubscribe<int>(GameEvents.LocalPlayerGoldChanged, OnGoldChanged);
+    }
+
+    private void OnGoldChanged(int newGold)
+    {
+        if (goldNum != null) goldNum.text = newGold.ToString();
     }
 
     public void PurchaseWeapon(int id)
@@ -36,7 +51,7 @@ public class UIWeaponShop : MonoBehaviour
         if (playerState.gold > weaponConfig.price)
         {
             var info = new PlayerPurchaseWeapon(NetworkManager.instance.playerName, id);
-            NetworkManager.SendMessage(MessageType.PurchaseWeapon, info);
+            NetworkManager.Send(MessageType.PurchaseWeapon, info);
         }
     }
 }

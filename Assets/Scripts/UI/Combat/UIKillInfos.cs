@@ -10,11 +10,32 @@ public class UIKillInfos : MonoBehaviour
 
     private void Awake()
     {
-        if(instance == null)
+        if (instance == null)
+        {
             instance = this;
-        else Destroy(gameObject);
+        }
+        else
+        {
+            Destroy(gameObject);
+            return;
+        }
 
         killInfoCellPrefab = Resources.Load<GameObject>("Prefabs/UI/KillInfoCell");
+    }
+
+    private void OnEnable()
+    {
+        EventCenter.Subscribe<PlayerKill>(GameEvents.PlayerKilled, OnPlayerKilled);
+    }
+
+    private void OnDisable()
+    {
+        EventCenter.Unsubscribe<PlayerKill>(GameEvents.PlayerKilled, OnPlayerKilled);
+    }
+
+    private void OnPlayerKilled(PlayerKill k)
+    {
+        AddKillInofo(k.playerKillName, k.playerDieName, k.weaponId, k.shotHead);
     }
 
     public void AddKillInofo(string killName, string dieName, int weaponId, bool shotHead)
@@ -25,7 +46,7 @@ public class UIKillInfos : MonoBehaviour
         killInfoCell.transform.Find("Weapon").GetComponent<UnityEngine.UI.Image>().sprite = WeaponDic.instance.weaponDic[weaponId].icon;
         killInfoCell.transform.Find("ShotHead").gameObject.SetActive(shotHead);
         StartCoroutine(RemoveKillInfo(killInfoCell));
-    } 
+    }
 
     private IEnumerator RemoveKillInfo(GameObject killInfo)
     {

@@ -13,13 +13,37 @@ public class UIKillBanner : MonoBehaviour
 
     private void Awake()
     {
-        if(instance == null)
+        if (instance == null)
+        {
             instance = this;
-        else Destroy(instance);
+        }
+        else
+        {
+            Destroy(gameObject);
+            return;
+        }
 
         rectTransform = GetComponent<RectTransform>();
         killNormal.SetActive(false);
         killHead.SetActive(false);
+    }
+
+    private void OnEnable()
+    {
+        EventCenter.Subscribe<PlayerKill>(GameEvents.PlayerKilled, OnPlayerKilled);
+    }
+
+    private void OnDisable()
+    {
+        EventCenter.Unsubscribe<PlayerKill>(GameEvents.PlayerKilled, OnPlayerKilled);
+    }
+
+    private void OnPlayerKilled(PlayerKill k)
+    {
+        // 只有"我"是击杀者时才弹 Banner
+        if (NetworkManager.instance == null
+            || k.playerKillName != NetworkManager.instance.playerName) return;
+        ShowKillBanner(k.shotHead);
     }
 
     public void ShowKillBanner(bool headshot)

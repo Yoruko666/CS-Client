@@ -1,7 +1,5 @@
-using Newtonsoft.Json;
 using System.Collections;
 using System.Collections.Generic;
-using TMPro;
 using UnityEngine;
 
 public class PlayerController : MonoBehaviour
@@ -74,7 +72,6 @@ public class PlayerController : MonoBehaviour
         if (isRespawning) return;
         if (!isDie)
         {
-            if (isDie) Initialize();
             CollectInput();
             float alpha = (Time.time - updateTime) / TICK_INTERVAL;
             if ((previousState.GetPosition() - currentState.GetPosition()).magnitude > 1f)

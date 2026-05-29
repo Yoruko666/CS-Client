@@ -97,12 +97,12 @@ public class HallManager : MonoBehaviour
             if (slider.fillAmount >= 1f && persistentSceneHandle.IsDone && mapSceneHandle.IsDone)
             {
                 PlayerReady playerReady = new(NetworkManager.instance.playerName);
-                NetworkManager.SendMessage(MessageType.Ready, playerReady);
+                NetworkManager.Send(MessageType.Ready, playerReady);
             }
         }
     }
 
-    public void SendMessage(HallMessage message)
+    public void Send(HallMessage message)
     {
         byte[] buffer = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(message));
         socket.Send(buffer);

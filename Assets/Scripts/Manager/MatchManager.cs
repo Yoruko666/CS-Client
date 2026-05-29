@@ -1,8 +1,6 @@
-using Newtonsoft.Json;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.LowLevel;
 
 public class MatchManager : MonoBehaviour
 {
@@ -58,25 +56,19 @@ public class MatchManager : MonoBehaviour
         roundTimer = round_time[progress];
         currentRoundState = progress;
 
-        switch (progress)
+        // 实体相关的初始化：MatchManager 直接持有玩家引用，留在这里合理
+        if (progress == RoundState.Preparation)
         {
-            case RoundState.Preparation:
-                PlayerController.instance.Initialize();
-                NetworkManager.instance.localPlayer.GetComponent<WeaponManager>().Initialize();
-                foreach (GameObject player in NetworkManager.instance.playerPool.Values)
-                {
-                    player.transform.GetComponent<TPPlayerController>().Initialize();
-                }
-                UIPrompt.instance.RemovePrompts();
-                UIPrompt.instance.ShowBuyPrompt();
-                break;
-            case RoundState.InProgress:
-                UIRoot.instance.CloseShopPanel();
-                UIPrompt.instance.RemovePrompts();
-                break;
-            case RoundState.RoundOver:
-                break;
+            PlayerController.instance.Initialize();
+            NetworkManager.instance.LocalEntity.weapon.Initialize();
+            foreach (PlayerEntity entity in NetworkManager.instance.playerPool.Values)
+            {
+                entity.tp.Initialize();
+            }
         }
+
+        // UI / 音效 / 其他响应通过事件分发，订阅者各自处理
+        EventCenter.Invoke(GameEvents.RoundStateChanged, progress);
     }
 
     public void Win()
