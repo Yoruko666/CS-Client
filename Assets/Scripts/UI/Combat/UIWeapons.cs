@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -7,12 +6,11 @@ public class UIWeapons : MonoBehaviour
 {
     public GameObject player;
 
+    [Header("武器面板")]
+    public GameObject handgunPanel;   // Weapon2 - 副武器
+    public GameObject mainGunPanel;   // Weapon1 - 主武器
+
     private WeaponManager weaponManager;
-    /// <summary>
-    /// 武器槽位面板。索引和 WeaponManager.weapons 对齐：
-    ///   weaponPanels[0] -> Handgun 面板（"Weapon2"）
-    ///   weaponPanels[1] -> MainGun 面板（"Weapon1"）
-    /// </summary>
     private GameObject[] weaponPanels;
 
     private CanvasGroup canvasGroup;
@@ -21,13 +19,19 @@ public class UIWeapons : MonoBehaviour
     private int preIndex = 0;
     private float switchTime = 3;
 
-    private void Start()
+    private void Awake()
     {
         canvasGroup = GetComponent<CanvasGroup>();
         weaponManager = player.GetComponent<WeaponManager>();
-        weaponPanels = new GameObject[WeaponManager.SLOT_COUNT];
-        weaponPanels[WeaponManager.SLOT_HANDGUN] = transform.Find("Weapon2").gameObject;
-        weaponPanels[WeaponManager.SLOT_MAINGUN] = transform.Find("Weapon1").gameObject;
+        weaponPanels = new GameObject[]
+        {
+            handgunPanel,   // [0] SLOT_HANDGUN
+            mainGunPanel    // [1] SLOT_MAINGUN
+        };
+    }
+
+    private void Start()
+    {
         RefreshAllSlots();
     }
 
@@ -71,6 +75,7 @@ public class UIWeapons : MonoBehaviour
 
     private void RefreshAllSlots()
     {
+        if (weaponPanels == null) return;
         for (int i = 0; i < WeaponManager.SLOT_COUNT; i++)
         {
             var panel = weaponPanels[i];
@@ -91,7 +96,7 @@ public class UIWeapons : MonoBehaviour
 
     private void SetPanelHighlight(int slot, bool highlighted)
     {
-        if (slot < 0 || slot >= weaponPanels.Length || weaponPanels[slot] == null) return;
+        if (weaponPanels == null || slot < 0 || slot >= weaponPanels.Length || weaponPanels[slot] == null) return;
         var image = weaponPanels[slot].transform.Find("Image").GetComponent<Image>();
         image.color = highlighted
             ? new Color(255, 255, 255, 200f / 255f)

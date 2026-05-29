@@ -123,7 +123,7 @@ public class HallManager : MonoBehaviour
     public void Match()
     {
         Match match = new(NetworkConfigManager.instance.uid, gameMode);
-        SendMessage(new HallMessage(HallMessageType.Match, JsonConvert.SerializeObject(match)));
+        Send(new HallMessage(HallMessageType.Match, JsonConvert.SerializeObject(match)));
     }
 
     public void StartGame()

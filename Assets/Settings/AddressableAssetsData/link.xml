@@ -17,7 +17,6 @@
     <type fullname="UIAmmoNum" preserve="all" />
     <type fullname="UIFPS" preserve="all" />
     <type fullname="UIGameModes" preserve="all" />
-    <type fullname="UIHitIndicatorRoot" preserve="all" />
     <type fullname="UIHP" preserve="all" />
     <type fullname="UIKillBanner" preserve="all" />
     <type fullname="UIKillInfos" preserve="all" />

@@ -449,7 +449,7 @@ SkinnedMeshRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4211331311571912719}
   m_Enabled: 1
-  m_CastShadows: 2
+  m_CastShadows: 0
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
   m_StaticShadowCaster: 0
@@ -773,6 +773,8 @@ MonoBehaviour:
   weaponConfig: {fileID: 11400000, guid: 8116ce3c059951948acb7ae537b51fd8, type: 2}
   FX: {fileID: 8970942774821148391}
   muzzle: {fileID: 4944567408061114418}
+  owner: {fileID: 0}
+  playerCenter: {fileID: 0}
   ammoNum: 0
   ammoReserve: 0
   animator: {fileID: 0}
