@@ -41,13 +41,14 @@ public class UIWeaponShop : MonoBehaviour
     public void PurchaseWeapon(int id)
     {
         WeaponConfig weaponConfig = WeaponDic.instance.weaponDic[id];
-        if (weaponManager.weaponList.Count > 1)
-        {
-            var playerMainGun = weaponManager.weaponList[1].GetComponent<WeaponController>();
-            if (weaponConfig.weaponType == WeaponType.MainGun && playerMainGun.weaponConfig.id == weaponConfig.id && playerMainGun.IsFull()) return;
-        }
-        var playerHandgun = weaponManager.weaponList[0].GetComponent<WeaponController>();
-        if (weaponConfig.weaponType == WeaponType.Handgun && playerHandgun.weaponConfig.id == weaponConfig.id && playerHandgun.IsFull()) return;
+
+        // 已经持有同 id 武器且弹药满 → 无需重复购买
+        int slot = weaponConfig.weaponType == WeaponType.MainGun
+            ? WeaponManager.SLOT_MAINGUN
+            : WeaponManager.SLOT_HANDGUN;
+        var current = weaponManager.GetWeaponController(slot);
+        if (current != null && current.weaponConfig.id == id && current.IsFull()) return;
+
         if (playerState.gold > weaponConfig.price)
         {
             var info = new PlayerPurchaseWeapon(NetworkManager.instance.playerName, id);

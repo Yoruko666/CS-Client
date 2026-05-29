@@ -19,44 +19,38 @@ public class WeaponManager : MonoBehaviour
     private float firingTime = 0;
 
     /// <summary>武器槽：[0]=Handgun (副武器)，[1]=MainGun (主武器)。</summary>
-    private const int SLOT_HANDGUN = 0;
-    private const int SLOT_MAINGUN = 1;
-    private GameObject[] weapons = new GameObject[2];
+    public const int SLOT_HANDGUN = 0;
+    public const int SLOT_MAINGUN = 1;
+    public const int SLOT_COUNT = 2;
+    private GameObject[] weapons = new GameObject[SLOT_COUNT];
 
     [HideInInspector] public GameObject activeWeapon;
     [HideInInspector] public int weaponIndex = 0;
     private FSMController FSM;
 
-    /// <summary>外部脚本仍可能查这个数量；通过非 null 槽位计算。</summary>
+    /// <summary>当前持有的武器数量。</summary>
     public int WeaponCount
     {
         get
         {
             int n = 0;
-            if (weapons[SLOT_HANDGUN] != null) n++;
-            if (weapons[SLOT_MAINGUN] != null) n++;
+            for (int i = 0; i < SLOT_COUNT; i++) if (weapons[i] != null) n++;
             return n;
         }
     }
 
-    /// <summary>
-    /// 兼容旧 API：UI 等外部脚本仍按"列表"读取武器槽位。
-    /// 注意：这是一个"快照"，每次访问会构造新 List；外部不要在 hot path 频繁调用，
-    /// 也不要修改返回的 List（修改不会影响内部状态）。
-    /// </summary>
-    public List<GameObject> weaponList
-    {
-        get
-        {
-            var list = new List<GameObject>(2);
-            if (weapons[SLOT_HANDGUN] != null) list.Add(weapons[SLOT_HANDGUN]);
-            if (weapons[SLOT_MAINGUN] != null) list.Add(weapons[SLOT_MAINGUN]);
-            return list;
-        }
-    }
+    /// <summary>按槽位直接获取武器 GameObject，没装备时返回 null。</summary>
+    public GameObject GetWeapon(int slot) => (slot >= 0 && slot < SLOT_COUNT) ? weapons[slot] : null;
 
-    /// <summary>按槽位直接获取武器（推荐使用）。</summary>
-    public GameObject GetWeapon(int slot) => weapons[slot];
+    /// <summary>对应槽位是否已装备武器。</summary>
+    public bool HasWeapon(int slot) => GetWeapon(slot) != null;
+
+    /// <summary>按槽位获取 WeaponController（含 weaponConfig / 弹药等），没装备时返回 null。</summary>
+    public WeaponController GetWeaponController(int slot)
+    {
+        var go = GetWeapon(slot);
+        return go != null ? go.GetComponent<WeaponController>() : null;
+    }
 
     private void Awake()
     {
@@ -92,7 +86,9 @@ public class WeaponManager : MonoBehaviour
             upAngle = Mathf.Pow(upTime, 2) * 10;
         }
         upAngle = Mathf.Clamp(upAngle, 0, 6);
-        mainCamera.transform.rotation = playerCenter.rotation * Quaternion.Euler(-upAngle, 0, 0);
+        // 镜头偏移 = 开火上抬（-upAngle）+ 落地踉跄低头（+landKickAngle）
+        float pitchOffset = -upAngle + (playerController != null ? playerController.LandKickAngle : 0f);
+        mainCamera.transform.rotation = playerCenter.rotation * Quaternion.Euler(pitchOffset, 0, 0);
     }
 
     public void UpdatePlayerState(ref PlayerStateInfo playerState) { }
@@ -138,6 +134,9 @@ public class WeaponManager : MonoBehaviour
         animator.runtimeAnimatorController = weaponController.weaponConfig.FPAnimator;
         FSM.Initialize(weapon);
         activeWeapon.SetActive(true);
+
+        // 通知 UI 等订阅者：武器槽位发生变化（包括切换 / 拔枪 / 购买）
+        EventCenter.Invoke(GameEvents.WeaponSwitched, weaponIndex);
     }
 
     public void Fire()

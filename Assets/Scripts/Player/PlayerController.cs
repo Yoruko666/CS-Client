@@ -45,6 +45,34 @@ public class PlayerController : MonoBehaviour
     [HideInInspector] public PlayerStateInfo previousState, currentState;
     private float updateTime = 0;
 
+    // ============ 落地踉跄（Landing Stagger）============
+    // 落地时按下落速度产生减速期 + 镜头下压（Valorant/CS 风格）
+    // 注意：staggerTimer 同时存在于客户端和服务端 ProcessInput 里，必须保持算法严格一致，
+    // 否则会触发 reconciliation。
+    /// <summary>开始踉跄的最小下落速度阈值（绝对值）。低于此值的落地不踉跄。</summary>
+    private const float STAGGER_FALL_THRESHOLD = 4f;
+    /// <summary>下落速度对应踉跄强度的比例：每多 1 单位向下速度，多 0.06 秒踉跄。</summary>
+    private const float STAGGER_DURATION_PER_SPEED = 0.06f;
+    /// <summary>踉跄期最大时长（防止从超高处坠落卡死）。</summary>
+    private const float STAGGER_DURATION_MAX = 0.6f;
+    /// <summary>踉跄期的水平加速度（远低于正常 50/s²，玩家会"使不上劲"）。</summary>
+    private const float STAGGER_ACCELERATION = 8f;
+    /// <summary>踉跄期还剩多少秒（>0 表示当前正在踉跄）。同步在客户端 / 服务端两端。</summary>
+    private float staggerTimer = 0f;
+
+    // 镜头下压（仅本地视觉，不参与回滚）
+    /// <summary>镜头当前的踉跄下压角度（度，正数表示低头）。</summary>
+    private float landKickAngle = 0f;
+    /// <summary>当前动量速度（用于阻尼弹簧回归 0）。</summary>
+    private float landKickVelocity = 0f;
+    /// <summary>镜头弹簧固有频率（越高回弹越快）。</summary>
+    private const float LAND_KICK_FREQ = 8f;
+    /// <summary>镜头弹簧阻尼比（1 = 临界阻尼，<1 会过冲，>1 缓慢）。</summary>
+    private const float LAND_KICK_DAMPING = 0.9f;
+
+    /// <summary>外部（如 WeaponManager）查询的当前镜头下压度数。</summary>
+    public float LandKickAngle => landKickAngle;
+
     //Shared
     private readonly static float TICK_INTERVAL = NetworkManager.TICK_INTERVAL;
 
@@ -73,6 +101,7 @@ public class PlayerController : MonoBehaviour
         if (!isDie)
         {
             CollectInput();
+            UpdateLandKick(Time.deltaTime);
             float alpha = (Time.time - updateTime) / TICK_INTERVAL;
             if ((previousState.GetPosition() - currentState.GetPosition()).magnitude > 1f)
             {
@@ -81,6 +110,40 @@ public class PlayerController : MonoBehaviour
                 characterController.enabled = true;
             }
             else characterController.Move(Vector3.Lerp(previousState.GetPosition(), currentState.GetPosition(), alpha) - transform.position); 
+        }
+    }
+
+    /// <summary>
+    /// 落地踉跄镜头下压：产生一个瞬时下压角度，之后通过阻尼弹簧回归 0。
+    /// 仅本地视觉效果，不参与服务端权威 / 回滚。
+    /// </summary>
+    private void TriggerLandKick(float staggerDuration)
+    {
+        // 下压角度：踉跄 0~0.6s 对应 ~1°~12°；用线性映射
+        float kick = Mathf.Lerp(1f, 12f, staggerDuration / STAGGER_DURATION_MAX);
+        // 取最大值：避免连续小落地把已经在恢复的踉跄重置成更小值
+        landKickAngle = Mathf.Max(landKickAngle, kick);
+        // 给一个负的初速度让弹簧"先继续往下蹲"再回弹（更有 punch 感）
+        landKickVelocity = -kick * 8f;
+    }
+
+    /// <summary>
+    /// 阻尼弹簧把 landKickAngle 拉回 0。
+    /// 公式：x'' = -ω²·x - 2ζω·x'    （二阶系统经典写法）
+    /// </summary>
+    private void UpdateLandKick(float dt)
+    {
+        if (landKickAngle == 0f && landKickVelocity == 0f) return;
+        float omega = LAND_KICK_FREQ;
+        // 注意：这里 angle 越大表示低头越多；目标是 0
+        float accel = -omega * omega * landKickAngle - 2f * LAND_KICK_DAMPING * omega * landKickVelocity;
+        landKickVelocity += accel * dt;
+        landKickAngle += landKickVelocity * dt;
+        // 死区：足够小就停下，避免数值在 0 附近抖动
+        if (Mathf.Abs(landKickAngle) < 0.01f && Mathf.Abs(landKickVelocity) < 0.5f)
+        {
+            landKickAngle = 0f;
+            landKickVelocity = 0f;
         }
     }
 
@@ -197,7 +260,13 @@ public class PlayerController : MonoBehaviour
         }
         else targetSpeed = 0;
 
-        int acceleration = isGrounded ? 50 : 15;
+        // 加速度：地面正常 50，空中 15，踉跄期降到 STAGGER_ACCELERATION（玩家"使不上劲"）
+        // 踉跄期计时与状态保持在 staggerTimer，每 tick 衰减
+        float acceleration;
+        if (isGrounded)
+            acceleration = staggerTimer > 0f ? STAGGER_ACCELERATION : 50f;
+        else
+            acceleration = 15f;
         speed = Mathf.MoveTowards(speed, targetSpeed, acceleration * TICK_INTERVAL);
         movement = Vector3.MoveTowards(movement, direction * targetSpeed, acceleration * TICK_INTERVAL);
 
@@ -211,18 +280,31 @@ public class PlayerController : MonoBehaviour
         if (characterController.isGrounded)
         {
             isGrounded = true;
-            velocity = -0.5f;
+            // 落地的瞬间：根据落地前下落速度（velocity 负数）触发踉跄
             if (isInAir)
             {
                 isInAir = false;
-                speed = 0;
+                float fallSpeed = -velocity;        // 转正
+                if (fallSpeed > STAGGER_FALL_THRESHOLD)
+                {
+                    float over = fallSpeed - STAGGER_FALL_THRESHOLD;
+                    float duration = Mathf.Min(over * STAGGER_DURATION_PER_SPEED, STAGGER_DURATION_MAX);
+                    // 取最大值：连续两次踉跄不会被新一次的小落地打断
+                    if (duration > staggerTimer) staggerTimer = duration;
+                    // 触发镜头下压（仅本地视觉，下压度数与时长成正比）
+                    TriggerLandKick(duration);
+                }
             }
+            velocity = -0.5f;
         }
         else
         {
             isInAir = true;
             velocity -= GRAVITY * TICK_INTERVAL;
         }
+
+        // 踉跄计时衰减（必须在客户端 / 服务端两端同样运行）
+        if (staggerTimer > 0f) staggerTimer = Mathf.Max(0f, staggerTimer - TICK_INTERVAL);
 
         if (inputInfo.isCrouch) height = Mathf.MoveTowards(height, 1.2f, 4 * TICK_INTERVAL);
         else height = Mathf.MoveTowards(height, 1.6f, 4 * TICK_INTERVAL);
@@ -266,6 +348,10 @@ public class PlayerController : MonoBehaviour
         jump = false;
         isCrouch = false;
         height = 1.8f;
+        // 清空踉跄状态，避免上一回合的镜头下压残留到重生瞬间
+        staggerTimer = 0f;
+        landKickAngle = 0f;
+        landKickVelocity = 0f;
         characterController.height = height;
         characterController.center = new Vector3(0, height / 2, 0);
 
