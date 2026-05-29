@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -12,7 +11,7 @@ public class MatchManager : MonoBehaviour
 
     private int selfScore, oppoScore;
     private int currentRound;
-     public RoundState currentRoundState;
+    public RoundState currentRoundState;
     [HideInInspector] public float roundTimer;
 
     [HideInInspector] public int playerNum;
@@ -74,15 +73,13 @@ public class MatchManager : MonoBehaviour
     public void Win()
     {
         selfScore++;
-        UITeamInfo.instance.selfScore.text = selfScore.ToString();
-        UIPrompt.instance.ShowWonPrompt();
+        EventCenter.Invoke(GameEvents.RoundWon, selfScore);
     }
 
     public void Lose()
     {
         oppoScore++;
-        UITeamInfo.instance.oppoScore.text = oppoScore.ToString();
-        UIPrompt.instance.ShowLostPrompt();
+        EventCenter.Invoke(GameEvents.RoundLost, oppoScore);
     }
 }
 

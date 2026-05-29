@@ -22,6 +22,8 @@ public static class GameEvents
 
     // ===== 比赛 / 回合 =====
     public const int RoundStateChanged = 40;     // 参数: RoundState
+    public const int RoundWon          = 41;     // 参数: int (本方累计得分)
+    public const int RoundLost         = 42;     // 参数: int (对方累计得分)
 
     // ===== 网络 =====
     public const int RttUpdated = 60;            // 参数: int (RTT ms)

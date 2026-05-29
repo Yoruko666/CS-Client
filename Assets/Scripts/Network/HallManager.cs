@@ -81,7 +81,7 @@ public class HallManager : MonoBehaviour
                         NetworkConfigManager.instance.serverPort = start.port;
 
                         persistentSceneHandle = Addressables.LoadSceneAsync("Persistent Scene", LoadSceneMode.Additive, true);
-                        mapSceneHandle = Addressables.LoadSceneAsync(Maps.Instance.maps[start.map], LoadSceneMode.Additive, true);
+                        mapSceneHandle = Addressables.LoadSceneAsync(MapAddressTable.Instance.maps[start.map], LoadSceneMode.Additive, true);
 
                         menu.SetActive(false);
                         loading.SetActive(true);

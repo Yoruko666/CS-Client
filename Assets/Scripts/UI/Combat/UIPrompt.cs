@@ -24,11 +24,15 @@ public class UIPrompt : MonoBehaviour
     private void OnEnable()
     {
         EventCenter.Subscribe<RoundState>(GameEvents.RoundStateChanged, OnRoundStateChanged);
+        EventCenter.Subscribe<int>(GameEvents.RoundWon,  OnWon);
+        EventCenter.Subscribe<int>(GameEvents.RoundLost, OnLost);
     }
 
     private void OnDisable()
     {
         EventCenter.Unsubscribe<RoundState>(GameEvents.RoundStateChanged, OnRoundStateChanged);
+        EventCenter.Unsubscribe<int>(GameEvents.RoundWon,  OnWon);
+        EventCenter.Unsubscribe<int>(GameEvents.RoundLost, OnLost);
     }
 
     private void OnRoundStateChanged(RoundState s)
@@ -43,10 +47,13 @@ public class UIPrompt : MonoBehaviour
                 RemovePrompts();
                 break;
             case RoundState.RoundOver:
-                // 胜负 prompt 由 MatchManager.Win/Lose 触发，这里不动
+                // 胜负 prompt 由 RoundWon / RoundLost 事件触发
                 break;
         }
     }
+
+    private void OnWon(int _)  => ShowWonPrompt();
+    private void OnLost(int _) => ShowLostPrompt();
 
     public void ShowBuyPrompt() => buyPrompt.SetActive(true);
     public void ShowWonPrompt() => wonPrompt.SetActive(true);

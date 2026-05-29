@@ -1,6 +1,3 @@
-using JetBrains.Annotations;
-using System.Collections;
-using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 
@@ -17,4 +14,19 @@ public class UITeamInfo : MonoBehaviour
             instance = this;
         else Destroy(gameObject);
     }
+
+    private void OnEnable()
+    {
+        EventCenter.Subscribe<int>(GameEvents.RoundWon, OnWon);
+        EventCenter.Subscribe<int>(GameEvents.RoundLost, OnLost);
+    }
+
+    private void OnDisable()
+    {
+        EventCenter.Unsubscribe<int>(GameEvents.RoundWon, OnWon);
+        EventCenter.Unsubscribe<int>(GameEvents.RoundLost, OnLost);
+    }
+
+    private void OnWon(int score)  => selfScore.text = score.ToString();
+    private void OnLost(int score) => oppoScore.text = score.ToString();
 }

@@ -52,22 +52,22 @@ public class TPWeaponManager : MonoBehaviour
             {
                 if (hit.collider.GetComponent<BodyCollider>().part == BodyPart.Head)
                 {
-                    VFX hitHead = ObjectPoolManager.Instance.VFXHitHeadPool.Spawn();
+                    VFX hitHead = ObjectPoolManager.Instance.Spawn(VFXType.HitHead);
                     hitHead.gameObject.transform.SetPositionAndRotation(hit.point, Quaternion.identity);
                 }
                 else
                 {
-                    VFX flame = ObjectPoolManager.Instance.VFXFlamePool.Spawn();
+                    VFX flame = ObjectPoolManager.Instance.Spawn(VFXType.Flame);
                     flame.gameObject.transform.SetPositionAndRotation(hit.point, Quaternion.identity);
                 }
             }
             else
             {
-                VFX dirt = ObjectPoolManager.Instance.VFXDirtPool.Spawn();
+                VFX dirt = ObjectPoolManager.Instance.Spawn(VFXType.Dirt);
                 dirt.gameObject.transform.SetPositionAndRotation(hit.point, Quaternion.LookRotation(hit.normal));
-                VFX flame = ObjectPoolManager.Instance.VFXFlamePool.Spawn();
+                VFX flame = ObjectPoolManager.Instance.Spawn(VFXType.Flame);
                 flame.gameObject.transform.SetPositionAndRotation(hit.point, Quaternion.LookRotation(hit.normal));
-                VFX bulletHole = ObjectPoolManager.Instance.VFXBulletHolePool.Spawn();
+                VFX bulletHole = ObjectPoolManager.Instance.Spawn(VFXType.BulletHole);
                 bulletHole.gameObject.transform.SetPositionAndRotation(hit.point + hit.normal * 0.0001f, Quaternion.LookRotation(hit.normal));
             }
         }
@@ -75,7 +75,7 @@ public class TPWeaponManager : MonoBehaviour
 
     private IEnumerator ShowFireLine(Vector3 startPosition, Vector3 endPosition)
     {
-        GameObject fireLine = ObjectPoolManager.Instance.VFXFireLinePool.Spawn().gameObject;
+        GameObject fireLine = ObjectPoolManager.Instance.Spawn(VFXType.FireLine).gameObject;
         LineRenderer lineRenderer = fireLine.GetComponent<LineRenderer>();
         lineRenderer.SetPosition(0, startPosition);
         lineRenderer.SetPosition(1, endPosition);
@@ -89,7 +89,7 @@ public class TPWeaponManager : MonoBehaviour
             timeout -= Time.deltaTime;
             yield return null;
         }
-        ObjectPoolManager.Instance.VFXFireLinePool.Recycle(fireLine.GetComponent<VFX>());
+        ObjectPoolManager.Instance.Recycle(VFXType.FireLine, fireLine.GetComponent<VFX>());
     }
 
     public void Reload()
