@@ -1,10 +1,12 @@
 using UnityEngine;
 
+/// <summary>
+/// 本地玩家状态（HP / gold）。
+/// 严格服务端权威：所有变化都来自 ApplyPlayerState，本地不做任何预测扣减。
+/// 属性 setter 中触发事件，确保任何修改路径都会通知 UI。
+/// </summary>
 public class PlayerState : MonoBehaviour
 {
-    // 属性 setter 中触发事件，确保任何修改路径都会通知 UI。
-    // 同时只在数值真的变化时 emit，避免每帧 ApplyPlayerState 都触发。
-
     private int _hp;
     public int HP
     {
@@ -33,19 +35,16 @@ public class PlayerState : MonoBehaviour
 
     private void Start()
     {
+        // 初值占位，开局后会被服务端 ApplyPlayerState 覆盖。
         HP = 100;
-        gold = 10000;
-    }
-
-    public void Cost(int num)
-    {
-        gold -= num;
+        gold = 0;
     }
 
     public void ApplyPlayerState(PlayerStateInfo playerState)
     {
         HP = playerState.HP;
-        // TODO（P2 共享数据后）：gold 也应该从服务端同步。当前协议未带，先保留客户端预测值。
+        gold = playerState.gold;        // 服务端权威（含开局发钱、回合发钱、击杀奖励、购买扣款）
     }
 }
+
 

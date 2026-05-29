@@ -91,16 +91,34 @@ public class WeaponManager : MonoBehaviour
 
     public void UpdatePlayerState(ref PlayerStateInfo playerState) { }
 
+    /// <summary>本回合是否死过。由 PlayerController.Die 标记，Initialize 时消费并清零。</summary>
+    [HideInInspector] public bool diedThisRound = false;
+
     public void Initialize()
     {
-        // 副武器复位
+        // 副武器复位（永远满血复活）
         AcquireWeapon(2, 12, 24);
-        // 如果之前有主武器，重新刷弹给它
-        if (weapons[SLOT_MAINGUN] != null)
+
+        if (diedThisRound)
         {
+            // 死过：丢主武器
+            if (weapons[SLOT_MAINGUN] != null)
+            {
+                Destroy(weapons[SLOT_MAINGUN]);
+                weapons[SLOT_MAINGUN] = null;
+            }
+            // 强制握副武器
+            weaponIndex = SLOT_HANDGUN;
+            ApplyWeapon(weapons[SLOT_HANDGUN]);
+        }
+        else if (weapons[SLOT_MAINGUN] != null)
+        {
+            // 存活：保留主武器并补满弹药
             WeaponConfig cfg = weapons[SLOT_MAINGUN].GetComponent<WeaponController>().weaponConfig;
             AcquireWeapon(cfg.id, cfg.magazineCapacity, cfg.magazineCapacity * 2);
         }
+
+        diedThisRound = false;
     }
 
     /// <summary>响应鼠标滚轮切换武器。</summary>
@@ -253,8 +271,8 @@ public class WeaponManager : MonoBehaviour
 
     public void PurchaseWeapon(int id)
     {
+        // 仅本地装备武器；金币由服务端 ApplyPlayerState 同步扣款，客户端不再预测扣金币
         WeaponConfig weaponConfig = WeaponDic.instance.weaponDic[id];
-        GetComponent<PlayerState>().Cost(weaponConfig.price);
         AcquireWeapon(id, weaponConfig.magazineCapacity, weaponConfig.magazineCapacity * 2);
     }
 

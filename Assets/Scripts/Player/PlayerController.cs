@@ -320,6 +320,10 @@ public class PlayerController : MonoBehaviour
         center.gameObject.SetActive(false);
         body.gameObject.SetActive(true);
         StartCoroutine(FallDown());
+
+        // 标记本回合死过：下次 Initialize 时由 WeaponManager 丢主武器
+        var wm = GetComponent<WeaponManager>();
+        if (wm != null) wm.diedThisRound = true;
     }
 
     public IEnumerator FallDown()

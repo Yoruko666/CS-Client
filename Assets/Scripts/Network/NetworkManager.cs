@@ -77,7 +77,6 @@ public class NetworkManager : MonoBehaviour
             { MessageType.AllPlayersInfo,  OnAllPlayersInfo  },
             { MessageType.Fire,            OnFire            },
             { MessageType.Reload,          OnReload          },
-            { MessageType.PurchaseWeapon,  OnPurchaseWeapon  },
             { MessageType.AcquireWeapon,   OnAcquireWeapon   },
             { MessageType.SwitchWeapon,    OnSwitchWeapon    },
             { MessageType.Kill,            OnKill            },
@@ -226,21 +225,22 @@ public class NetworkManager : MonoBehaviour
             entity.tpWeapon.Reload();
     }
 
-    private void OnPurchaseWeapon(string msg)
-    {
-        var playerPurchaseWeapon = JsonConvert.DeserializeObject<PlayerPurchaseWeapon>(msg);
-        if (playerPurchaseWeapon.playerName == playerName)
-        {
-            LocalEntity.weapon.PurchaseWeapon(playerPurchaseWeapon.id);
-        }
-    }
-
+    /// <summary>
+    /// 服务端确认武器装备的权威广播。
+    /// - 购买者自己：本地装备武器（不再做任何预测，等这条到达）
+    /// - 其他玩家：给敌人换 TP 武器
+    /// </summary>
     private void OnAcquireWeapon(string msg)
     {
         var playerAcquireWeapon = JsonConvert.DeserializeObject<PlayerAcquireWeapon>(msg);
-        if (playerAcquireWeapon.playerName != playerName
-            && playerPool.TryGetValue(playerAcquireWeapon.playerName, out var entity) && entity?.tpWeapon != null)
+        if (playerAcquireWeapon.playerName == playerName)
+        {
+            LocalEntity.weapon.PurchaseWeapon(playerAcquireWeapon.id);
+        }
+        else if (playerPool.TryGetValue(playerAcquireWeapon.playerName, out var entity) && entity?.tpWeapon != null)
+        {
             entity.tpWeapon.AcquireWeapon(playerAcquireWeapon.id);
+        }
     }
 
     private void OnSwitchWeapon(string msg)
