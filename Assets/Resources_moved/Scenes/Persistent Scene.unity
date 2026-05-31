@@ -6076,9 +6076,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3ca8a8e8c114a9140bef86fd2b856f59, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  content: {fileID: 699802311}
   scrollRect: {fileID: 895196572}
-  bubbleWidth: 300
+  inputField: {fileID: 1941348418}
+  inputBar: {fileID: 1881102762}
   padding: 10
 --- !u!1 &1067120801
 GameObject:
@@ -10381,7 +10381,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1881102763
 RectTransform:
   m_ObjectHideFlags: 0

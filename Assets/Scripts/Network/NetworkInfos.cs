@@ -207,6 +207,11 @@ public class RoundEnd
     }
 }
 
+public enum ChatArea
+{
+    Team, All
+}
+
 public class Chat
 {
     public int uid;
@@ -229,9 +234,4 @@ public class PingPong
         this.uid = uid;
         this.tick = tick;
     }
-}
-
-public enum ChatArea
-{
-    Team, All
 }

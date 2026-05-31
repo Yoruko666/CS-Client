@@ -8,6 +8,8 @@ public class AimState : IState
 
     public override void Update()
     {
+        if (PlayerController.instance != null && PlayerController.instance.inputLocked) return;
+
         if ((Input.GetKeyDown(KeyCode.R) || FSM.weaponController.ammoNum == 0) && FSM.weaponController.ammoReserve > 0 && FSM.weaponController.ammoNum < FSM.weaponController.weaponConfig.magazineCapacity)
             FSM.SwitchState(States.Reload);
         if (Input.GetKeyDown(KeyCode.Mouse1))

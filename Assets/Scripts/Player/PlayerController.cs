@@ -28,6 +28,7 @@ public class PlayerController : MonoBehaviour
     private bool isGrounded;
     private bool isInAir;
     public bool isDie = true;
+    public bool inputLocked;
     private bool isRespawning = false;
 
     private float velocity = 0;
@@ -38,16 +39,12 @@ public class PlayerController : MonoBehaviour
     private CharacterController characterController;
     private Transform center;
     private Transform body;
-    private PlayerInputControl inputControl;
+    public PlayerInputControl inputControl;
     private PlayerState playerState;
 
     [HideInInspector] public PlayerStateInfo previousState, currentState;
     private float updateTime = 0;
 
-    // ============ 落地踉跄（Landing Stagger）============
-    // 落地时按下落速度产生减速期 + 镜头下压（Valorant/CS 风格）
-    // 注意：staggerTimer 同时存在于客户端和服务端 ProcessInput 里，必须保持算法严格一致，
-    // 否则会触发 reconciliation。
     /// <summary>开始踉跄的最小下落速度阈值（绝对值）。低于此值的落地不踉跄。</summary>
     private const float STAGGER_FALL_THRESHOLD = 4f;
     /// <summary>下落速度对应踉跄强度的比例：每多 1 单位向下速度，多 0.06 秒踉跄。</summary>
@@ -134,11 +131,9 @@ public class PlayerController : MonoBehaviour
     {
         if (landKickAngle == 0f && landKickVelocity == 0f) return;
         float omega = LAND_KICK_FREQ;
-        // 注意：这里 angle 越大表示低头越多；目标是 0
         float accel = -omega * omega * landKickAngle - 2f * LAND_KICK_DAMPING * omega * landKickVelocity;
         landKickVelocity += accel * dt;
         landKickAngle += landKickVelocity * dt;
-        // 死区：足够小就停下，避免数值在 0 附近抖动
         if (Mathf.Abs(landKickAngle) < 0.01f && Mathf.Abs(landKickVelocity) < 0.5f)
         {
             landKickAngle = 0f;
@@ -148,6 +143,7 @@ public class PlayerController : MonoBehaviour
 
     private void CollectInput()
     {
+        if (inputLocked) return;
         Vector2 moveInput = inputControl.Gameplay.Move.ReadValue<Vector2>();
         moveInputX = moveInput.x;
         moveInputY = moveInput.y;

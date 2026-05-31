@@ -8,6 +8,8 @@ public class IdleState : IState
 
     public override void Update()
     {
+        if (PlayerController.instance != null && PlayerController.instance.inputLocked) return;
+
         var w = FSM.weaponController;
         var cfg = w.weaponConfig;
 

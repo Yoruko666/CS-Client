@@ -1,3 +1,5 @@
+using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
@@ -5,12 +7,14 @@ using UnityEngine.UI;
 
 public class UIChatPanel : MonoBehaviour
 {
-    [SerializeField] private Transform content;
     [SerializeField] private ScrollRect scrollRect;
-    [SerializeField] private float bubbleWidth = 300f;
+    [SerializeField] private TMP_InputField inputField;
+    [SerializeField] private GameObject inputBar;
     [SerializeField] private float padding = 10f;
 
+    private bool open;
     private GameObject chatCellPrefab;
+    private readonly List<GameObject> chatCellList = new();
 
     private void OnEnable()
     {
@@ -29,22 +33,65 @@ public class UIChatPanel : MonoBehaviour
 
     private void Update()
     {
-        if (Input.GetKeyDown(KeyCode.Y))
+        if (Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown(KeyCode.Return))
         {
-            AddChatCell(new Chat(1234, ChatArea.Team, "2154154846984984"));
+            if (!open)
+            {
+                OnOpen();
+            }
+            else
+            {
+                OnClose();
+            }
         }
     }
+
+    private void OnOpen()
+    {
+        open = true;
+        inputBar.SetActive(true);
+        inputField.ActivateInputField();
+        foreach (GameObject chatCell in chatCellList)
+        {
+            chatCell.SetActive(true);
+        }
+        Canvas.ForceUpdateCanvases();
+        scrollRect.verticalNormalizedPosition = 0f;
+
+        if (PlayerController.instance != null)
+            PlayerController.instance.inputLocked = true;
+    }
+
+    private void OnClose()
+    {
+        open = false;
+        inputBar.SetActive(false);
+        foreach (GameObject chatCell in chatCellList)
+        {
+            chatCell.SetActive(false);
+        }
+        if (!string.IsNullOrEmpty(inputField.text))
+        {
+            NetworkManager.Send(MessageType.Chat, new Chat(NetworkManager.instance.uid, ChatArea.All, inputField.text));
+            inputField.text = string.Empty;
+        }
+
+        if (PlayerController.instance != null)
+            PlayerController.instance.inputLocked = false;
+    }
+
 
     private void AddChatCell(Chat chat)
     {
         if (chatCellPrefab == null) return;
+        GameObject chatCell = Instantiate(chatCellPrefab, scrollRect.content);
+        chatCellList.Add(chatCell);
 
-        GameObject chatCell = Instantiate(chatCellPrefab, content);
         Transform bg = chatCell.transform.Find("Bg");
         Transform text = bg.transform.Find("Text");
 
         TextMeshProUGUI tmpText = text.GetComponent<TextMeshProUGUI>();
-        tmpText.text = chat.uid + ": " + chat.text;
+        tmpText.text = (chat.area == ChatArea.Team ? "(Team)" : "(All)") + chat.uid + ": " + chat.text;
 
         LayoutRebuilder.ForceRebuildLayoutImmediate(text as RectTransform);
 
@@ -57,8 +104,18 @@ public class UIChatPanel : MonoBehaviour
         RectTransform cellRect = chatCell.transform as RectTransform;
         cellRect.sizeDelta = new Vector2(cellRect.sizeDelta.x, bgHeight);
 
-        Canvas.ForceUpdateCanvases();
-        scrollRect.verticalNormalizedPosition = 0f;
-        Canvas.ForceUpdateCanvases();
+        if (open)
+        {
+            Canvas.ForceUpdateCanvases();
+            scrollRect.verticalNormalizedPosition = 0f;
+        }
+
+        StartCoroutine(HideChatCellInTime(chatCell));
+    }
+
+    private IEnumerator HideChatCellInTime(GameObject chatCell)
+    {
+        yield return new WaitForSecondsRealtime(5f);
+        chatCell.SetActive(false);
     }
 }
