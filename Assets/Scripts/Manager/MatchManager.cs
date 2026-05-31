@@ -66,20 +66,19 @@ public class MatchManager : MonoBehaviour
             }
         }
 
-        // UI / 音效 / 其他响应通过事件分发，订阅者各自处理
-        EventCenter.Invoke(GameEvents.RoundStateChanged, progress);
+        EventCenter.Invoke(GameEvent.RoundStateChanged, progress);
     }
 
     public void Win()
     {
         selfScore++;
-        EventCenter.Invoke(GameEvents.RoundWon, selfScore);
+        EventCenter.Invoke(GameEvent.RoundWon, selfScore);
     }
 
     public void Lose()
     {
         oppoScore++;
-        EventCenter.Invoke(GameEvents.RoundLost, oppoScore);
+        EventCenter.Invoke(GameEvent.RoundLost, oppoScore);
     }
 }
 

@@ -133,7 +133,7 @@ public class WeaponManager : MonoBehaviour
 
         weaponIndex = target;
         ApplyWeapon(weapons[weaponIndex]);
-        var msg = new PlayerSwitchWeapon(NetworkManager.instance.playerName, weaponIndex);
+        var msg = new PlayerSwitchWeapon(NetworkManager.instance.uid, weaponIndex);
         NetworkManager.Send(MessageType.SwitchWeapon, msg);
     }
 
@@ -152,7 +152,7 @@ public class WeaponManager : MonoBehaviour
         activeWeapon.SetActive(true);
 
         // 通知 UI 等订阅者：武器槽位发生变化（包括切换 / 拔枪 / 购买）
-        EventCenter.Invoke(GameEvents.WeaponSwitched, weaponIndex);
+        EventCenter.Invoke(GameEvent.WeaponSwitched, weaponIndex);
     }
 
     public void Fire()
@@ -183,7 +183,7 @@ public class WeaponManager : MonoBehaviour
         fireDirection = Quaternion.AngleAxis(verticalOffset, playerRotation * Vector3.right) * fireDirection;
         fireDirection = Quaternion.AngleAxis(horizontalOffset, playerRotation * Vector3.up) * fireDirection;
 
-        PlayerFire playerFire = new(NetworkManager.instance.playerName, seed);
+        PlayerFire playerFire = new(NetworkManager.instance.uid, seed);
         NetworkManager.Send(MessageType.Fire, playerFire);
 
         if (Physics.Raycast(center, fireDirection, out RaycastHit hit, 100f, ~(1 << playerLayer | 1 << CCLayer)))

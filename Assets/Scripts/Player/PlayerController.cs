@@ -201,7 +201,7 @@ public class PlayerController : MonoBehaviour
 
     public PlayerInputInfo GetInputInfo()
     {
-        PlayerInputInfo inputInfo = new(NetworkManager.instance.playerName, moveInputX, moveInputY, lookInputX, lookInputY, jump, isWalk, isCrouch);
+        PlayerInputInfo inputInfo = new(NetworkManager.instance.uid, moveInputX, moveInputY, lookInputX, lookInputY, jump, isWalk, isCrouch);
         lookInputX = 0;
         lookInputY = 0;
         jump = false;
@@ -338,7 +338,7 @@ public class PlayerController : MonoBehaviour
         isRespawning = true;
         StopAllCoroutines();
 
-        int id = NetworkManager.instance.id;
+        int slot = NetworkManager.instance.slot;
         isDie = false;
         characterController.enabled = false;
 
@@ -359,9 +359,9 @@ public class PlayerController : MonoBehaviour
         characterController.center = new Vector3(0, height / 2, 0);
 
         rotationX = 0;
-        rotationY = (id / 3) * 180;
-        transform.position = MatchManager.instance.mapConfig.bornPoints[id];
-        transform.rotation = Quaternion.Euler(0, ((id / 3) * 180), 0);
+        rotationY = (slot / 3) * 180;
+        transform.position = MatchManager.instance.mapConfig.bornPoints[slot];
+        transform.rotation = Quaternion.Euler(0, ((slot / 3) * 180), 0);
         position = transform.position;
 
         characterController.enabled = true;

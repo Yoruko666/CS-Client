@@ -17,14 +17,14 @@ public class UITeamInfo : MonoBehaviour
 
     private void OnEnable()
     {
-        EventCenter.Subscribe<int>(GameEvents.RoundWon, OnWon);
-        EventCenter.Subscribe<int>(GameEvents.RoundLost, OnLost);
+        EventCenter.Subscribe<int>(GameEvent.RoundWon, OnWon);
+        EventCenter.Subscribe<int>(GameEvent.RoundLost, OnLost);
     }
 
     private void OnDisable()
     {
-        EventCenter.Unsubscribe<int>(GameEvents.RoundWon, OnWon);
-        EventCenter.Unsubscribe<int>(GameEvents.RoundLost, OnLost);
+        EventCenter.Unsubscribe<int>(GameEvent.RoundWon, OnWon);
+        EventCenter.Unsubscribe<int>(GameEvent.RoundLost, OnLost);
     }
 
     private void OnWon(int score)  => selfScore.text = score.ToString();

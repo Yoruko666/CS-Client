@@ -11,27 +11,25 @@ using UnityEngine.AddressableAssets;
 
 public class NetworkManager : MonoBehaviour
 {
-    public int id, team;
-    public string playerName;
+    public int slot, team;
+    public int uid;
 
     private static UdpClient udpClient;
     private static IPEndPoint serverEndPoint;
     private static ConcurrentQueue<(MessageType, string)> messageList = new();
 
-    /// <summary>所有远程玩家（不含自己）的实体容器，key = playerName。</summary>
-    public Dictionary<string, PlayerEntity> playerPool = new();
+    public Dictionary<int, PlayerEntity> playerPool = new();
 
-    /// <summary>本地玩家 GameObject（在 Inspector 中拖入）。</summary>
     public GameObject localPlayer;
 
-    /// <summary>本地玩家实体（对 localPlayer 的组件缓存包装），首次访问时创建。</summary>
     private PlayerEntity _localEntity;
+
     public PlayerEntity LocalEntity
     {
         get
         {
             if (_localEntity == null && localPlayer != null)
-                _localEntity = PlayerEntity.CreateLocal(localPlayer, playerName, id, team);
+                _localEntity = PlayerEntity.CreateLocal(localPlayer, uid, slot, team);
             return _localEntity;
         }
     }
@@ -47,10 +45,8 @@ public class NetworkManager : MonoBehaviour
     private PlayerInputInfo[] inputBuffer = new PlayerInputInfo[BUFFER_SIZE];
     private PlayerStateInfo[] stateBuffer = new PlayerStateInfo[BUFFER_SIZE];
 
-    // 消息处理器注册表
     private Dictionary<MessageType, Action<string>> handlers;
 
-    // ============ 资源缓存（避免 hot path 反复加载 / 查找） ============
     private GameObject _enemyPrefab;
 
     private static int IndexOf(uint t) => (int)(t % (uint)BUFFER_SIZE);
@@ -64,7 +60,7 @@ public class NetworkManager : MonoBehaviour
         }
         else Destroy(gameObject);
 
-        playerName = NetworkConfigManager.instance.uid;
+        uid = NetworkConfigManager.instance.uid;
         RegisterHandlers();
     }
 
@@ -83,6 +79,7 @@ public class NetworkManager : MonoBehaviour
             { MessageType.Hit,             OnHit             },
             { MessageType.RoundEnd,        OnRoundEnd        },
             { MessageType.PingPong,        OnPingPong        },
+            { MessageType.Chat,            OnChat            }
         };
     }
 
@@ -93,7 +90,7 @@ public class NetworkManager : MonoBehaviour
         udpClient = new UdpClient(0);
         serverEndPoint = new IPEndPoint(IPAddress.Parse(NetworkConfigManager.instance.serverAddress), NetworkConfigManager.instance.serverPort);
 
-        Send(MessageType.Connect, new PlayerConnect(playerName));
+        Send(MessageType.Connect, new PlayerConnect(uid));
 
         Thread receiveThread = new(new ThreadStart(ReceiveMessage));
         receiveThread.Start();
@@ -141,9 +138,9 @@ public class NetworkManager : MonoBehaviour
         for (int i = 0; i < playersInfo.Count; i++)
         {
             PlayerStateInfo playerState = playersInfo[i];
-            if (playerState.playerName.Equals(playerName))
+            if (playerState.uid == uid)
             {
-                id = playerState.id;
+                slot = playerState.slot;
                 team = playerState.team;
                 _ = LocalEntity;     // 触发 LocalEntity 懒加载
                 PlayerController.instance.Initialize();
@@ -151,9 +148,9 @@ public class NetworkManager : MonoBehaviour
             else
             {
                 GameObject enemy = Instantiate(_enemyPrefab);
-                var entity = PlayerEntity.CreateRemote(enemy, playerState.playerName, playerState.id, playerState.team);
-                playerPool[playerState.playerName] = entity;
-                entity.tp.Initialize(playerState.playerName, playerState.id);
+                var entity = PlayerEntity.CreateRemote(enemy, playerState.uid, playerState.slot, playerState.team);
+                playerPool[playerState.uid] = entity;
+                entity.tp.Initialize(playerState.uid, playerState.slot);
             }
         }
     }
@@ -169,12 +166,12 @@ public class NetworkManager : MonoBehaviour
         var playersInfo = JsonConvert.DeserializeObject<List<PlayerStateInfo>>(msg);
         foreach (PlayerStateInfo playerState in playersInfo)
         {
-            string name = playerState.playerName;
-            if (name == playerName)
+            int psUid = playerState.uid;
+            if (psUid == uid)
             {
                 ApplyLocalPlayerState(playerState);
             }
-            else if (playerPool.TryGetValue(name, out var entity) && entity?.tp != null)
+            else if (playerPool.TryGetValue(psUid, out var entity) && entity?.tp != null)
             {
                 entity.tp.EnqueueSnapshot(playerState);
             }
@@ -212,32 +209,27 @@ public class NetworkManager : MonoBehaviour
     private void OnFire(string msg)
     {
         var playerFire = JsonConvert.DeserializeObject<PlayerFire>(msg);
-        if (playerFire.playerName != playerName
-            && playerPool.TryGetValue(playerFire.playerName, out var entity) && entity?.tpWeapon != null)
+        if (playerFire.uid != uid
+            && playerPool.TryGetValue(playerFire.uid, out var entity) && entity?.tpWeapon != null)
             entity.tpWeapon.Fire(playerFire.GetHitPoint());
     }
 
     private void OnReload(string msg)
     {
         var playerReload = JsonConvert.DeserializeObject<PlayerReload>(msg);
-        if (playerReload.playerName != playerName
-            && playerPool.TryGetValue(playerReload.playerName, out var entity) && entity?.tpWeapon != null)
+        if (playerReload.uid != uid
+            && playerPool.TryGetValue(playerReload.uid, out var entity) && entity?.tpWeapon != null)
             entity.tpWeapon.Reload();
     }
 
-    /// <summary>
-    /// 服务端确认武器装备的权威广播。
-    /// - 购买者自己：本地装备武器（不再做任何预测，等这条到达）
-    /// - 其他玩家：给敌人换 TP 武器
-    /// </summary>
     private void OnAcquireWeapon(string msg)
     {
         var playerAcquireWeapon = JsonConvert.DeserializeObject<PlayerAcquireWeapon>(msg);
-        if (playerAcquireWeapon.playerName == playerName)
+        if (playerAcquireWeapon.uid == uid)
         {
             LocalEntity.weapon.PurchaseWeapon(playerAcquireWeapon.id);
         }
-        else if (playerPool.TryGetValue(playerAcquireWeapon.playerName, out var entity) && entity?.tpWeapon != null)
+        else if (playerPool.TryGetValue(playerAcquireWeapon.uid, out var entity) && entity?.tpWeapon != null)
         {
             entity.tpWeapon.AcquireWeapon(playerAcquireWeapon.id);
         }
@@ -246,8 +238,8 @@ public class NetworkManager : MonoBehaviour
     private void OnSwitchWeapon(string msg)
     {
         var playerSwitchWeapon = JsonConvert.DeserializeObject<PlayerSwitchWeapon>(msg);
-        if (playerSwitchWeapon.playerName != playerName
-            && playerPool.TryGetValue(playerSwitchWeapon.playerName, out var entity) && entity?.tpWeapon != null)
+        if (playerSwitchWeapon.uid != uid
+            && playerPool.TryGetValue(playerSwitchWeapon.uid, out var entity) && entity?.tpWeapon != null)
             entity.tpWeapon.SwitchWeapon(playerSwitchWeapon.index);
     }
 
@@ -255,26 +247,24 @@ public class NetworkManager : MonoBehaviour
     {
         var playerKill = JsonConvert.DeserializeObject<PlayerKill>(msg);
 
-        // 这一段必须留在 NetworkManager —— 因为只有它直接持有 playerPool / LocalEntity。
-        if (playerName == playerKill.playerKillName
-            && playerPool.TryGetValue(playerKill.playerDieName, out var dieEntity)
+        if (uid == playerKill.killerUid
+            && playerPool.TryGetValue(playerKill.victimUid, out var dieEntity)
             && dieEntity?.tp != null)
         {
             dieEntity.tp.Die();
         }
-        if (playerName == playerKill.playerDieName)
+        if (uid == playerKill.victimUid)
         {
             LocalEntity.fp.Die();
         }
 
-        // 其余响应（Banner / 击杀信息条 / 音效 / 未来的连杀提示等）由订阅者各自处理
-        EventCenter.Invoke(GameEvents.PlayerKilled, playerKill);
+        EventCenter.Invoke(GameEvent.PlayerKilled, playerKill);
     }
 
     private void OnHit(string msg)
     {
         var hit = JsonConvert.DeserializeObject<Hit>(msg);
-        EventCenter.Invoke(GameEvents.LocalPlayerHit, hit);
+        EventCenter.Invoke(GameEvent.LocalPlayerHit, hit);
     }
 
     private void OnRoundEnd(string msg)
@@ -290,11 +280,12 @@ public class NetworkManager : MonoBehaviour
         UIRTT.instance.ReceivePong(pingPong.tick);
     }
 
-    /// <summary>
-    /// 服务端回传的 tick 是客户端发送时的 inputInfo.tick（int，已 mod BUFFER_SIZE）。
-    /// 这里把它恢复成"最近一次的 logic tick（uint，永不回绕）"。
-    /// 利用 uint 减法的回绕特性，即使 logic tick 跨过 uint.MaxValue 也正确。
-    /// </summary>
+    private void OnChat(string msg)
+    {
+        var chat = JsonConvert.DeserializeObject<Chat>(msg);
+        EventCenter.Invoke(GameEvent.Chat, chat);
+    }
+
     private uint RecoverLogicTick(int moddedTick)
     {
         uint cur = tick;

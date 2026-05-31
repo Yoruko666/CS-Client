@@ -29,19 +29,18 @@ public class UIKillBanner : MonoBehaviour
 
     private void OnEnable()
     {
-        EventCenter.Subscribe<PlayerKill>(GameEvents.PlayerKilled, OnPlayerKilled);
+        EventCenter.Subscribe<PlayerKill>(GameEvent.PlayerKilled, OnPlayerKilled);
     }
 
     private void OnDisable()
     {
-        EventCenter.Unsubscribe<PlayerKill>(GameEvents.PlayerKilled, OnPlayerKilled);
+        EventCenter.Unsubscribe<PlayerKill>(GameEvent.PlayerKilled, OnPlayerKilled);
     }
 
     private void OnPlayerKilled(PlayerKill k)
     {
-        // 只有"我"是击杀者时才弹 Banner
         if (NetworkManager.instance == null
-            || k.playerKillName != NetworkManager.instance.playerName) return;
+            || k.killerUid != NetworkManager.instance.uid) return;
         ShowKillBanner(k.shotHead);
     }
 

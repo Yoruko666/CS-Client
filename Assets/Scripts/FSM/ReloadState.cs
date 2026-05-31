@@ -19,7 +19,7 @@ public class ReloadState : IState
 
     public override void OnStateEnter()
     {
-        PlayerReload playerReload = new(NetworkManager.instance.playerName);
+        PlayerReload playerReload = new(NetworkManager.instance.uid);
         NetworkManager.Send(MessageType.Reload, playerReload);
         if (FSM.weaponController.weaponConfig.SingleReload)
             SingleReloadEnter();

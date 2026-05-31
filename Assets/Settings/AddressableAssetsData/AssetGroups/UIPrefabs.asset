@@ -10,20 +10,15 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: bbb281ee3bf0b054c82ac2347e9e782c, type: 3}
-  m_Name: Scenes
+  m_Name: UIPrefabs
   m_EditorClassIdentifier: 
-  m_GroupName: Scenes
+  m_GroupName: UIPrefabs
   m_Data:
     m_SerializedData: []
-  m_GUID: 57b0a0cf6d6b240458302c1c28be9295
+  m_GUID: 05f8a0a3848f1d643a5fb5f0450be16d
   m_SerializeEntries:
-  - m_GUID: 130de191e9bf7de41a659f68e5741ed0
-    m_Address: Sand Sea Lost City
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 99c9720ab356a0642a771bea13969a05
-    m_Address: Persistent Scene
+  - m_GUID: bc0c55c0d0144c64c9bd1f063e51b133
+    m_Address: UIChatCell
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -31,5 +26,5 @@ MonoBehaviour:
   m_Settings: {fileID: 11400000, guid: af32ddd6078bbe644ae698c6a67ed82d, type: 2}
   m_SchemaSet:
     m_Schemas:
-    - {fileID: 11400000, guid: 788323f8c85372541845a86502a0c0b9, type: 2}
-    - {fileID: 11400000, guid: f5b0355e52049974bb195807a366aa09, type: 2}
+    - {fileID: 11400000, guid: 37c0a65da71b37f48a66f990fcd488de, type: 2}
+    - {fileID: 11400000, guid: a20ab5fa6968fdc4d81634d091b07857, type: 2}

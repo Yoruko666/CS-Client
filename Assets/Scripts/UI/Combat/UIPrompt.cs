@@ -23,16 +23,16 @@ public class UIPrompt : MonoBehaviour
 
     private void OnEnable()
     {
-        EventCenter.Subscribe<RoundState>(GameEvents.RoundStateChanged, OnRoundStateChanged);
-        EventCenter.Subscribe<int>(GameEvents.RoundWon,  OnWon);
-        EventCenter.Subscribe<int>(GameEvents.RoundLost, OnLost);
+        EventCenter.Subscribe<RoundState>(GameEvent.RoundStateChanged, OnRoundStateChanged);
+        EventCenter.Subscribe<int>(GameEvent.RoundWon,  OnWon);
+        EventCenter.Subscribe<int>(GameEvent.RoundLost, OnLost);
     }
 
     private void OnDisable()
     {
-        EventCenter.Unsubscribe<RoundState>(GameEvents.RoundStateChanged, OnRoundStateChanged);
-        EventCenter.Unsubscribe<int>(GameEvents.RoundWon,  OnWon);
-        EventCenter.Unsubscribe<int>(GameEvents.RoundLost, OnLost);
+        EventCenter.Unsubscribe<RoundState>(GameEvent.RoundStateChanged, OnRoundStateChanged);
+        EventCenter.Unsubscribe<int>(GameEvent.RoundWon,  OnWon);
+        EventCenter.Unsubscribe<int>(GameEvent.RoundLost, OnLost);
     }
 
     private void OnRoundStateChanged(RoundState s)

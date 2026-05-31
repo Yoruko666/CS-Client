@@ -13,7 +13,7 @@ public class UIGameModes : MonoBehaviour
     {
         modeButton.Add(GameMode.ModePractice, BtnPractice);
         modeButton.Add(GameMode.Mode1v1, Btn1V1);
-        modeButton.Add(GameMode.Mode5v5, Btn5V5);
+        modeButton.Add(GameMode.Mode3v3, Btn5V5);
         SelectMode(GameMode.ModePractice);
     }
 

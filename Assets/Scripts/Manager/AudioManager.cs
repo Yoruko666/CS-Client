@@ -26,12 +26,12 @@ public class AudioManager : MonoBehaviour
 
     private void OnEnable()
     {
-        EventCenter.Subscribe<PlayerKill>(GameEvents.PlayerKilled, OnPlayerKilled);
+        EventCenter.Subscribe<PlayerKill>(GameEvent.PlayerKilled, OnPlayerKilled);
     }
 
     private void OnDisable()
     {
-        EventCenter.Unsubscribe<PlayerKill>(GameEvents.PlayerKilled, OnPlayerKilled);
+        EventCenter.Unsubscribe<PlayerKill>(GameEvent.PlayerKilled, OnPlayerKilled);
     }
 
     public void PlayAudio(AudioClip audioClip)
@@ -42,8 +42,8 @@ public class AudioManager : MonoBehaviour
     private void OnPlayerKilled(PlayerKill k)
     {
         // 只有"我"是击杀者时播放击杀音效
-        if (NetworkManager.instance == null
-            || k.playerKillName != NetworkManager.instance.playerName) return;
+        if (NetworkManager.instance == null || k.killerUid != NetworkManager.instance.uid) 
+            return;
 
         // 懒加载（避免在 hall 阶段就拉资源；同步加载，第一次击杀会有微小卡顿）
         if (_killAudio == null)

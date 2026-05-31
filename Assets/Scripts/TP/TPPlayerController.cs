@@ -19,8 +19,8 @@ public class TPPlayerController : MonoBehaviour
     private Animator animator;
     private CharacterController characterController;
 
-    public string playerName;
-    public int id;
+    public int uid;
+    public int slot;
 
     // ============ Snapshot 插值 ============
 
@@ -201,10 +201,10 @@ public class TPPlayerController : MonoBehaviour
     {
     }
 
-    public void Initialize(string playerName, int id)
+    public void Initialize(int uid, int slot)
     {
-        this.playerName = playerName;
-        this.id = id;
+        this.uid = uid;
+        this.slot = slot;
 
         animator = GetComponent<Animator>();
         characterController = GetComponent<CharacterController>();
@@ -218,8 +218,8 @@ public class TPPlayerController : MonoBehaviour
     public void Initialize()
     {
         characterController.enabled = false;
-        transform.position = MatchManager.instance.mapConfig.bornPoints[id];
-        transform.rotation = Quaternion.Euler(0, ((id / 3) * 180), 0);
+        transform.position = MatchManager.instance.mapConfig.bornPoints[slot];
+        transform.rotation = Quaternion.Euler(0, ((slot / 3) * 180), 0);
         isDead = false;
         animator.enabled = true;
         characterController.enabled = true;

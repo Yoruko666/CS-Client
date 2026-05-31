@@ -96,7 +96,7 @@ public class HallManager : MonoBehaviour
             slider.fillAmount = (persistentSceneHandle.PercentComplete + mapSceneHandle.PercentComplete) / 2;
             if (slider.fillAmount >= 1f && persistentSceneHandle.IsDone && mapSceneHandle.IsDone)
             {
-                PlayerReady playerReady = new(NetworkManager.instance.playerName);
+                PlayerReady playerReady = new(NetworkManager.instance.uid);
                 NetworkManager.Send(MessageType.Ready, playerReady);
             }
         }
@@ -142,7 +142,7 @@ public class HallManager : MonoBehaviour
 
 public enum GameMode
 {
-    ModePractice, Mode1v1, Mode5v5
+    ModePractice, Mode1v1, Mode3v3
 }
 
 public enum HallMessageType
@@ -163,8 +163,8 @@ public class HallMessage
 
 public class Connect
 {
-    public string uid;
-    public Connect(string uid)
+    public int uid;
+    public Connect(int uid)
     {
         this.uid = uid; 
     }
@@ -172,9 +172,9 @@ public class Connect
 
 public class Match
 {
-    public string uid;
+    public int uid;
     public GameMode mode;
-    public Match(string uid, GameMode mode)
+    public Match(int uid, GameMode mode)
     {
         this.uid = uid;
         this.mode = mode;

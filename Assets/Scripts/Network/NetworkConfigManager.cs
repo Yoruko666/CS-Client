@@ -4,8 +4,10 @@ public class NetworkConfigManager : MonoBehaviour
 {
     public static NetworkConfigManager instance;
 
-    [HideInInspector] public string uid;
-    [HideInInspector] public string serverAddress;
+    [Header("·þÎñÆ÷µØÖ·")]
+    public string serverAddress = "127.0.0.1";
+
+    [HideInInspector] public int uid;
     [HideInInspector] public int serverPort;
 
     private void Awake()
@@ -16,7 +18,5 @@ public class NetworkConfigManager : MonoBehaviour
             DontDestroyOnLoad(gameObject);
         }
         else Destroy(gameObject);
-
-        serverAddress = "127.0.0.1";
     }
 }

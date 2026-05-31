@@ -20,7 +20,7 @@ public class UIWeaponShop : MonoBehaviour
 
     private void OnEnable()
     {
-        EventCenter.Subscribe<int>(GameEvents.LocalPlayerGoldChanged, OnGoldChanged);
+        EventCenter.Subscribe<int>(GameEvent.LocalPlayerGoldChanged, OnGoldChanged);
         // 面板被重新打开时主动同步一次显示
         if (playerState != null && goldNum != null)
             goldNum.text = playerState.gold.ToString();
@@ -28,7 +28,7 @@ public class UIWeaponShop : MonoBehaviour
 
     private void OnDisable()
     {
-        EventCenter.Unsubscribe<int>(GameEvents.LocalPlayerGoldChanged, OnGoldChanged);
+        EventCenter.Unsubscribe<int>(GameEvent.LocalPlayerGoldChanged, OnGoldChanged);
     }
 
     private void OnGoldChanged(int newGold)
@@ -49,7 +49,7 @@ public class UIWeaponShop : MonoBehaviour
 
         if (playerState.gold > weaponConfig.price)
         {
-            var info = new PlayerPurchaseWeapon(NetworkManager.instance.playerName, id);
+            var info = new PlayerPurchaseWeapon(NetworkManager.instance.uid, id);
             NetworkManager.Send(MessageType.PurchaseWeapon, info);
         }
     }

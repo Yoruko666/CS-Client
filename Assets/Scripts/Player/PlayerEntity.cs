@@ -7,8 +7,8 @@ using UnityEngine;
 /// </summary>
 public class PlayerEntity
 {
-    public string name;
-    public int id;
+    public int uid;
+    public int slot;
     public int team;
 
     public GameObject root;
@@ -26,12 +26,12 @@ public class PlayerEntity
     public bool IsLocal => fp != null;
 
     /// <summary>包装本地玩家 GameObject。</summary>
-    public static PlayerEntity CreateLocal(GameObject go, string name, int id, int team)
+    public static PlayerEntity CreateLocal(GameObject go, int uid, int slot, int team)
     {
         return new PlayerEntity
         {
-            name = name,
-            id = id,
+            uid = uid,
+            slot = slot,
             team = team,
             root = go,
             transform = go.transform,
@@ -42,12 +42,12 @@ public class PlayerEntity
     }
 
     /// <summary>包装远程玩家 GameObject。</summary>
-    public static PlayerEntity CreateRemote(GameObject go, string name, int id, int team)
+    public static PlayerEntity CreateRemote(GameObject go, int uid, int slot, int team)
     {
         return new PlayerEntity
         {
-            name = name,
-            id = id,
+            uid = uid,
+            slot = slot,
             team = team,
             root = go,
             transform = go.transform,

@@ -15,7 +15,7 @@ public class PlayerState : MonoBehaviour
         {
             if (_hp == value) return;
             _hp = value;
-            EventCenter.Invoke(GameEvents.LocalPlayerHpChanged, _hp);
+            EventCenter.Invoke(GameEvent.LocalPlayerHpChanged, _hp);
         }
     }
 
@@ -27,7 +27,7 @@ public class PlayerState : MonoBehaviour
         {
             if (_gold == value) return;
             _gold = value;
-            EventCenter.Invoke(GameEvents.LocalPlayerGoldChanged, _gold);
+            EventCenter.Invoke(GameEvent.LocalPlayerGoldChanged, _gold);
         }
     }
 

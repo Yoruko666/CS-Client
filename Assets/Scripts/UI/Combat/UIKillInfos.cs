@@ -24,26 +24,21 @@ public class UIKillInfos : MonoBehaviour
 
     private void OnEnable()
     {
-        EventCenter.Subscribe<PlayerKill>(GameEvents.PlayerKilled, OnPlayerKilled);
+        EventCenter.Subscribe<PlayerKill>(GameEvent.PlayerKilled, OnPlayerKilled);
     }
 
     private void OnDisable()
     {
-        EventCenter.Unsubscribe<PlayerKill>(GameEvents.PlayerKilled, OnPlayerKilled);
+        EventCenter.Unsubscribe<PlayerKill>(GameEvent.PlayerKilled, OnPlayerKilled);
     }
 
-    private void OnPlayerKilled(PlayerKill k)
-    {
-        AddKillInofo(k.playerKillName, k.playerDieName, k.weaponId, k.shotHead);
-    }
-
-    public void AddKillInofo(string killName, string dieName, int weaponId, bool shotHead)
+    private void OnPlayerKilled(PlayerKill playerKill)
     {
         GameObject killInfoCell = Instantiate(killInfoCellPrefab, transform);
-        killInfoCell.transform.Find("KillName").GetComponent<TMPro.TextMeshProUGUI>().text = killName;
-        killInfoCell.transform.Find("DieName").GetComponent<TMPro.TextMeshProUGUI>().text = dieName;
-        killInfoCell.transform.Find("Weapon").GetComponent<UnityEngine.UI.Image>().sprite = WeaponDic.instance.weaponDic[weaponId].icon;
-        killInfoCell.transform.Find("ShotHead").gameObject.SetActive(shotHead);
+        killInfoCell.transform.Find("KillName").GetComponent<TMPro.TextMeshProUGUI>().text = playerKill.killerUid.ToString();
+        killInfoCell.transform.Find("DieName").GetComponent<TMPro.TextMeshProUGUI>().text = playerKill.victimUid.ToString();
+        killInfoCell.transform.Find("Weapon").GetComponent<UnityEngine.UI.Image>().sprite = WeaponDic.instance.weaponDic[playerKill.weaponId].icon;
+        killInfoCell.transform.Find("ShotHead").gameObject.SetActive(playerKill.shotHead);
         StartCoroutine(RemoveKillInfo(killInfoCell));
     }
 

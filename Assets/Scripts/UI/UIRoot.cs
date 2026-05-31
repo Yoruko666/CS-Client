@@ -16,12 +16,12 @@ public class UIRoot : MonoBehaviour
 
     private void OnEnable()
     {
-        EventCenter.Subscribe<RoundState>(GameEvents.RoundStateChanged, OnRoundStateChanged);
+        EventCenter.Subscribe<RoundState>(GameEvent.RoundStateChanged, OnRoundStateChanged);
     }
 
     private void OnDisable()
     {
-        EventCenter.Unsubscribe<RoundState>(GameEvents.RoundStateChanged, OnRoundStateChanged);
+        EventCenter.Unsubscribe<RoundState>(GameEvent.RoundStateChanged, OnRoundStateChanged);
     }
 
     private void OnRoundStateChanged(RoundState s)

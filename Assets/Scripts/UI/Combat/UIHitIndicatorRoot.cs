@@ -1,9 +1,5 @@
 using UnityEngine;
 
-/// <summary>
-/// 受击指示器根节点（应挂在场景的 Canvas/Indicator 上）。
-/// 监听 <see cref="GameEvents.LocalPlayerHit"/>，按需 Instantiate 一个 UIHitIndicator 子物体。
-/// </summary>
 public class UIHitIndicatorRoot : MonoBehaviour
 {
     private GameObject _hitIndicatorPrefab;
@@ -15,12 +11,12 @@ public class UIHitIndicatorRoot : MonoBehaviour
 
     private void OnEnable()
     {
-        EventCenter.Subscribe<Hit>(GameEvents.LocalPlayerHit, OnLocalPlayerHit);
+        EventCenter.Subscribe<Hit>(GameEvent.LocalPlayerHit, OnLocalPlayerHit);
     }
 
     private void OnDisable()
     {
-        EventCenter.Unsubscribe<Hit>(GameEvents.LocalPlayerHit, OnLocalPlayerHit);
+        EventCenter.Unsubscribe<Hit>(GameEvent.LocalPlayerHit, OnLocalPlayerHit);
     }
 
     private void OnLocalPlayerHit(Hit hit)

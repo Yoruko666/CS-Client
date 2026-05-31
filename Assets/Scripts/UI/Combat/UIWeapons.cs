@@ -37,12 +37,12 @@ public class UIWeapons : MonoBehaviour
 
     private void OnEnable()
     {
-        EventCenter.Subscribe<int>(GameEvents.WeaponSwitched, OnWeaponSwitched);
+        EventCenter.Subscribe<int>(GameEvent.WeaponSwitched, OnWeaponSwitched);
     }
 
     private void OnDisable()
     {
-        EventCenter.Unsubscribe<int>(GameEvents.WeaponSwitched, OnWeaponSwitched);
+        EventCenter.Unsubscribe<int>(GameEvent.WeaponSwitched, OnWeaponSwitched);
     }
 
     private void Update()

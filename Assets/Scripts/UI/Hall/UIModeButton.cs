@@ -8,11 +8,11 @@ public class UIModeButton : MonoBehaviour, IPointerClickHandler
     public Transform UIGameModes;
     public GameMode gameMode;
 
-    private Color colorBgNormal = new Color(236f / 255f, 232f / 255f, 225f / 255f);
-    private Color colorBgSelect = new Color(103f/255f, 116f/255f, 255f/255f);
+    private Color colorBgNormal = new(236f / 255f, 232f / 255f, 225f / 255f);
+    private Color colorBgSelect = new(103f/255f, 116f/255f, 255f/255f);
 
-    private Color colorTextNormal = new Color(15f / 255f, 25f / 255f, 35f / 255f);
-    private Color colorTextSelect = new Color(236f / 255f, 232f / 255f, 225f / 255f);
+    private Color colorTextNormal = new(15f / 255f, 25f / 255f, 35f / 255f);
+    private Color colorTextSelect = new(236f / 255f, 232f / 255f, 225f / 255f);
 
     public void OnPointerClick(PointerEventData eventData)
     {

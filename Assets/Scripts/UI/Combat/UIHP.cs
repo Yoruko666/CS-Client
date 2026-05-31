@@ -16,12 +16,12 @@ public class UIHP : MonoBehaviour
 
     private void OnEnable()
     {
-        EventCenter.Subscribe<int>(GameEvents.LocalPlayerHpChanged, OnHpChanged);
+        EventCenter.Subscribe<int>(GameEvent.LocalPlayerHpChanged, OnHpChanged);
     }
 
     private void OnDisable()
     {
-        EventCenter.Unsubscribe<int>(GameEvents.LocalPlayerHpChanged, OnHpChanged);
+        EventCenter.Unsubscribe<int>(GameEvent.LocalPlayerHpChanged, OnHpChanged);
     }
 
     private void OnHpChanged(int newHp)

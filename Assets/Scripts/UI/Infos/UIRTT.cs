@@ -28,7 +28,7 @@ public class UIRTT : MonoBehaviour
 
     void Start()
     {
-        pingPong = new PingPong(NetworkManager.instance.playerName, 0);
+        pingPong = new PingPong(NetworkManager.instance.uid, 0);
     }
 
     void Update()
@@ -57,7 +57,7 @@ public class UIRTT : MonoBehaviour
             else text.color = Color.red;
 
             // 暴露给其它感兴趣的系统：网络质量警告、掉线模糊、远程插值缓冲调节等
-            EventCenter.Invoke(GameEvents.RttUpdated, RTT);
+            EventCenter.Invoke(GameEvent.RttUpdated, RTT);
         }
     }
 

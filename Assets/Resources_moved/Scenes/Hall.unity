@@ -318,8 +318,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d9adf9ca65475b94caff2a85994c6857, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  uid: 
-  serverAddress: 
+  serverAddress: 127.0.0.1
+  uid: 0
   serverPort: 0
 --- !u!4 &323559771
 Transform:
@@ -991,7 +991,7 @@ GameObject:
   - component: {fileID: 1014418138}
   - component: {fileID: 1014418140}
   m_Layer: 5
-  m_Name: 5V5
+  m_Name: 3V3
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1756,7 +1756,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 5V5
+  m_text: 3V3
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
