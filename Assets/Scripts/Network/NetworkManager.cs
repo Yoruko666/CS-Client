@@ -9,7 +9,7 @@ using System.Threading;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 
-public class NetworkManager : MonoBehaviour
+public class NetworkManager : SingletonMono<NetworkManager>
 {
     public int slot, team;
     public int uid;
@@ -18,23 +18,21 @@ public class NetworkManager : MonoBehaviour
     private static IPEndPoint serverEndPoint;
     private static ConcurrentQueue<(MessageType, string)> messageList = new();
 
-    public Dictionary<int, PlayerEntity> playerPool = new();
+    public Dictionary<int, RemotePlayerEntity> playerPool = new();
 
     public GameObject localPlayer;
 
-    private PlayerEntity _localEntity;
+    private LocalPlayerEntity _localEntity;
 
-    public PlayerEntity LocalEntity
+    public LocalPlayerEntity LocalEntity
     {
         get
         {
             if (_localEntity == null && localPlayer != null)
-                _localEntity = PlayerEntity.CreateLocal(localPlayer, uid, slot, team);
+                _localEntity = new LocalPlayerEntity(localPlayer, uid, slot, team);
             return _localEntity;
         }
     }
-
-    public static NetworkManager instance;
 
     private uint tick;
     private float tickTimer;
@@ -51,15 +49,8 @@ public class NetworkManager : MonoBehaviour
 
     private static int IndexOf(uint t) => (int)(t % (uint)BUFFER_SIZE);
 
-    private void Awake()
+    protected override void OnSingletonAwake()
     {
-        if(instance == null)
-        {
-            instance = this;
-            DontDestroyOnLoad(gameObject);
-        }
-        else Destroy(gameObject);
-
         uid = NetworkConfigManager.instance.uid;
         RegisterHandlers();
     }
@@ -148,7 +139,7 @@ public class NetworkManager : MonoBehaviour
             else
             {
                 GameObject enemy = Instantiate(_enemyPrefab);
-                var entity = PlayerEntity.CreateRemote(enemy, playerState.uid, playerState.slot, playerState.team);
+                var entity = new RemotePlayerEntity(enemy, playerState.uid, playerState.slot, playerState.team);
                 playerPool[playerState.uid] = entity;
                 entity.tp.Initialize(playerState.uid, playerState.slot);
             }
@@ -171,7 +162,7 @@ public class NetworkManager : MonoBehaviour
             {
                 ApplyLocalPlayerState(playerState);
             }
-            else if (playerPool.TryGetValue(psUid, out var entity) && entity?.tp != null)
+            else if (playerPool.TryGetValue(psUid, out var entity) && entity.tp != null)
             {
                 entity.tp.EnqueueSnapshot(playerState);
             }
@@ -210,7 +201,7 @@ public class NetworkManager : MonoBehaviour
     {
         var playerFire = JsonConvert.DeserializeObject<PlayerFire>(msg);
         if (playerFire.uid != uid
-            && playerPool.TryGetValue(playerFire.uid, out var entity) && entity?.tpWeapon != null)
+            && playerPool.TryGetValue(playerFire.uid, out var entity) && entity.tpWeapon != null)
             entity.tpWeapon.Fire(playerFire.GetHitPoint());
     }
 
@@ -218,7 +209,7 @@ public class NetworkManager : MonoBehaviour
     {
         var playerReload = JsonConvert.DeserializeObject<PlayerReload>(msg);
         if (playerReload.uid != uid
-            && playerPool.TryGetValue(playerReload.uid, out var entity) && entity?.tpWeapon != null)
+            && playerPool.TryGetValue(playerReload.uid, out var entity) && entity.tpWeapon != null)
             entity.tpWeapon.Reload();
     }
 
@@ -229,7 +220,7 @@ public class NetworkManager : MonoBehaviour
         {
             LocalEntity.weapon.PurchaseWeapon(playerAcquireWeapon.id);
         }
-        else if (playerPool.TryGetValue(playerAcquireWeapon.uid, out var entity) && entity?.tpWeapon != null)
+        else if (playerPool.TryGetValue(playerAcquireWeapon.uid, out var entity) && entity.tpWeapon != null)
         {
             entity.tpWeapon.AcquireWeapon(playerAcquireWeapon.id);
         }
@@ -239,7 +230,7 @@ public class NetworkManager : MonoBehaviour
     {
         var playerSwitchWeapon = JsonConvert.DeserializeObject<PlayerSwitchWeapon>(msg);
         if (playerSwitchWeapon.uid != uid
-            && playerPool.TryGetValue(playerSwitchWeapon.uid, out var entity) && entity?.tpWeapon != null)
+            && playerPool.TryGetValue(playerSwitchWeapon.uid, out var entity) && entity.tpWeapon != null)
             entity.tpWeapon.SwitchWeapon(playerSwitchWeapon.index);
     }
 
@@ -249,7 +240,7 @@ public class NetworkManager : MonoBehaviour
 
         if (uid == playerKill.killerUid
             && playerPool.TryGetValue(playerKill.victimUid, out var dieEntity)
-            && dieEntity?.tp != null)
+            && dieEntity.tp != null)
         {
             dieEntity.tp.Die();
         }
@@ -309,14 +300,14 @@ public class NetworkManager : MonoBehaviour
         local.fp.ProcessInput(inputInfo);
         local.weapon.HandleTick();
 
-        PlayerStateInfo state = new();
-        local.fp.UpdatePlayerState(ref state);
-        local.weapon.UpdatePlayerState(ref state);
-
         inputInfo.tick = (int)(tick % (uint)BUFFER_SIZE);
         int slot = IndexOf(tick);
         inputBuffer[slot] = inputInfo;
-        stateBuffer[slot] = state;
+
+        PlayerStateInfo state = stateBuffer[slot] ??= new PlayerStateInfo();
+        local.fp.UpdatePlayerState(ref state);
+        local.weapon.UpdatePlayerState(ref state);
+
         Send(MessageType.InputInfo, inputInfo);
     }
 

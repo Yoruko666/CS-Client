@@ -1,26 +1,13 @@
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 
-public class AudioManager : MonoBehaviour
+public class AudioManager : SingletonMono<AudioManager>
 {
-    public static AudioManager instance;
-
     private AudioSource audioSource;
     private AudioClip _killAudio;
 
-    private void Awake()
+    protected override void OnSingletonAwake()
     {
-        if (instance == null)
-        {
-            instance = this;
-            DontDestroyOnLoad(gameObject);
-        }
-        else
-        {
-            Destroy(gameObject);
-            return;
-        }
-
         audioSource = GetComponent<AudioSource>();
     }
 

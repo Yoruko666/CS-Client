@@ -1,21 +1,13 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class WeaponDic : MonoBehaviour
+public class WeaponDic : SingletonMono<WeaponDic>
 {
     public WeaponDatabase weaponDatabase;
     [HideInInspector] public List<WeaponConfig> weaponDic = new();
 
-    public static WeaponDic instance;
-
-    private void Awake()
+    protected override void OnSingletonAwake()
     {
-        if(instance == null)
-        {
-            instance = this;
-            DontDestroyOnLoad(gameObject);
-        }
-        else Destroy(gameObject);
         weaponDic = weaponDatabase.weaponDatabase;
     }
 }

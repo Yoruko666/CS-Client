@@ -6,13 +6,13 @@ public class FSMController
     private Dictionary<States, IState> stateDictionary;
     private States currentState;
     public WeaponController weaponController;
-    public WeaponManager characterController;
+    public WeaponManager weaponManager;
 
     public float fireCold = 0;
 
-    public FSMController(WeaponManager characterController)
+    public FSMController(WeaponManager weaponManager)
     {
-        this.characterController = characterController;
+        this.weaponManager = weaponManager;
         stateDictionary = new Dictionary<States, IState>
         {
             { States.Ready, new ReadyState(this) },
@@ -47,9 +47,9 @@ public class FSMController
         stateDictionary[currentState].OnStateEnter();
 
         if (newState == States.Aim || newState == States.AimFire)
-            characterController.AimEnter(weaponController.weaponConfig.zoom);
+            weaponManager.AimEnter(weaponController.weaponConfig.zoom);
         else 
-            characterController.AimExit();
+            weaponManager.AimExit();
     }
 }
 

@@ -37,6 +37,7 @@ public class PlayerState : MonoBehaviour
     public void ApplyPlayerState(PlayerStateInfo playerState)
     {
         HP = playerState.HP;
+        armor = playerState.armor;
         gold = playerState.gold; 
     }
 }

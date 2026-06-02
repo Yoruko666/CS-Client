@@ -18,7 +18,7 @@ public class ReadyState : IState
     public override void OnStateEnter()
     {
         FSM.weaponController.Ready();
-        FSM.characterController.animator.Play("Ready");
+        FSM.weaponManager.animator.Play("Ready");
         readyTime = FSM.weaponController.weaponConfig.readyTime;
         FSM.fireCold = 0;
     }

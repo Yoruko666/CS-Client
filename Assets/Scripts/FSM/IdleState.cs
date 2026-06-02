@@ -40,7 +40,7 @@ public class IdleState : IState
 
     public override void OnStateEnter()
     {
-        FSM.characterController.animator.CrossFadeInFixedTime("Idle", 0.1f);
+        FSM.weaponManager.animator.CrossFadeInFixedTime("Idle", 0.1f);
         FSM.weaponController.Idle();
     }
     public override void OnStateExit()

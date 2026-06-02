@@ -1,10 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class MatchManager : MonoBehaviour
+public class MatchManager : SingletonMono<MatchManager>
 {
-    public static MatchManager instance;
-
     [HideInInspector] public bool gameStart = false;
     private readonly int ROUND_TO_WIN = 10;
     private Dictionary<RoundState, float> round_time;
@@ -17,15 +15,8 @@ public class MatchManager : MonoBehaviour
     [HideInInspector] public int playerNum;
     public MapConfig mapConfig;
 
-    private void Awake()
+    protected override void OnSingletonAwake()
     {
-        if (instance == null)
-        {
-            instance = this;
-            DontDestroyOnLoad(gameObject);
-        }
-        else Destroy(gameObject);
-
         round_time = new();
         round_time.Add(RoundState.Preparation, 5f);
         round_time.Add(RoundState.InProgress, 180f);
@@ -60,7 +51,7 @@ public class MatchManager : MonoBehaviour
         {
             PlayerController.instance.Initialize();
             NetworkManager.instance.LocalEntity.weapon.Initialize();
-            foreach (PlayerEntity entity in NetworkManager.instance.playerPool.Values)
+            foreach (RemotePlayerEntity entity in NetworkManager.instance.playerPool.Values)
             {
                 entity.tp.Initialize();
             }

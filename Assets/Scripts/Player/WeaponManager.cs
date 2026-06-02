@@ -287,15 +287,32 @@ public class WeaponManager : MonoBehaviour
         ctrl.playerCenter = playerCenter;
         ctrl.SetAmmo(ammoNum, ammoReserve);
 
-        int armLayer = LayerMask.NameToLayer("Arm");
-        foreach (Transform t in weapon.GetComponentsInChildren<Transform>(true))
-            t.gameObject.layer = armLayer;
+        // 武器 prefab 的所有节点应在编辑器中预设 layer 为 "Arm"，运行时只检查根节点；
+        // 若 prefab 已设对则一次比较跳过，否则做全树补正并打 warning（防 prefab 漏配）。
+        EnsureArmLayer(weapon);
 
         // 替换槽位：旧武器销毁 + 新武器入位
         if (weapons[slot] != null) Destroy(weapons[slot]);
         weapons[slot] = weapon;
         weaponIndex = slot;
         ApplyWeapon(weapon);
+    }
+
+    /// <summary>
+    /// 确保武器及其全部子节点在 "Arm" 层。最佳实践：在 prefab 中预设好 layer，
+    /// 这里就只跑一次 layer 比较；遇到未配置的旧 prefab 则一次性修正 + 编辑器警告。
+    /// </summary>
+    private static int _cachedArmLayer = -1;
+    private static void EnsureArmLayer(GameObject weapon)
+    {
+        if (_cachedArmLayer < 0) _cachedArmLayer = LayerMask.NameToLayer("Arm");
+        if (weapon.layer == _cachedArmLayer) return;     // fast path: prefab 已正确配置
+
+        foreach (Transform t in weapon.GetComponentsInChildren<Transform>(true))
+            t.gameObject.layer = _cachedArmLayer;
+#if UNITY_EDITOR
+        Debug.LogWarning($"[WeaponManager] 武器 prefab '{weapon.name}' 的 layer 未在编辑器中设为 Arm，运行时已自动修正。建议在 prefab 中设好以省掉每次拿枪的全树遍历。");
+#endif
     }
 
     public void ApplyPlayerState(PlayerStateInfo playerState) { }

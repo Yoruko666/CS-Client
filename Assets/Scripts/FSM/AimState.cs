@@ -25,7 +25,7 @@ public class AimState : IState
     public override void OnStateEnter()
     {
         FSM.weaponController.Idle();
-        FSM.characterController.animator.CrossFadeInFixedTime("Aim", 0.1f);
+        FSM.weaponManager.animator.CrossFadeInFixedTime("Aim", 0.1f);
     }
 
     public override void OnStateExit()

@@ -188,19 +188,6 @@ public class TPPlayerController : MonoBehaviour
         targetRotationX = rotationX;
     }
 
-    /// <summary>
-    /// 已废弃：现在通过 EnqueueSnapshot 提交服务端状态，由 Update 做插值。
-    /// 保留方法以兼容旧调用，但只把数据丢入队列。
-    /// </summary>
-    public void ApplyPlayerState(PlayerStateInfo playerStateInfo)
-    {
-        EnqueueSnapshot(playerStateInfo);
-    }
-
-    public void GetDamaged(float damage)
-    {
-    }
-
     public void Initialize(int uid, int slot)
     {
         this.uid = uid;

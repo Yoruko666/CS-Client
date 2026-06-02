@@ -32,7 +32,7 @@ public class ReloadState : IState
 
     private void MagazineReloadEnter()
     {
-        FSM.characterController.animator.Play("Reload");
+        FSM.weaponManager.animator.Play("Reload");
         FSM.weaponController.MagazineReload();
         reloadTime = 0;
     }
@@ -51,7 +51,7 @@ public class ReloadState : IState
     {
         reloading = false;
         currentStep = ReloadStep.Open;
-        FSM.characterController.animator.Play("ReloadOpen");
+        FSM.weaponManager.animator.Play("ReloadOpen");
         FSM.weaponController.ReloadOpen();
     }
 
@@ -60,23 +60,23 @@ public class ReloadState : IState
         switch (currentStep)
         {
             case ReloadStep.Open:
-                if (FSM.characterController.animator.GetCurrentAnimatorStateInfo(0).normalizedTime > 0.99f)
+                if (FSM.weaponManager.animator.GetCurrentAnimatorStateInfo(0).normalizedTime > 0.99f)
                     currentStep = ReloadStep.Insert;
                 break;
             case ReloadStep.Insert:
                 if (FSM.weaponController.ammoNum == FSM.weaponController.weaponConfig.magazineCapacity || FSM.weaponController.ammoReserve == 0)
                 {
                     currentStep = ReloadStep.Close;
-                    FSM.characterController.animator.Play("ReloadClose");
+                    FSM.weaponManager.animator.Play("ReloadClose");
                     FSM.weaponController.ReloadClose();
                 }
                 else if (!reloading)
                 {
                     reloading = true;
-                    FSM.characterController.animator.PlayInFixedTime("ReloadInsert", 0, 0);
+                    FSM.weaponManager.animator.PlayInFixedTime("ReloadInsert", 0, 0);
                     FSM.weaponController.ReloadInsert();
                 }
-                else if (FSM.characterController.animator.GetCurrentAnimatorStateInfo(0).normalizedTime > 0.99f)
+                else if (FSM.weaponManager.animator.GetCurrentAnimatorStateInfo(0).normalizedTime > 0.99f)
                 {
                     FSM.weaponController.ammoNum++;
                     FSM.weaponController.ammoReserve--;
@@ -84,7 +84,7 @@ public class ReloadState : IState
                 }
                 break;
             case ReloadStep.Close:
-                if (FSM.characterController.animator.GetCurrentAnimatorStateInfo(0).normalizedTime > 0.99f)
+                if (FSM.weaponManager.animator.GetCurrentAnimatorStateInfo(0).normalizedTime > 0.99f)
                     FSM.SwitchState(States.Idle);
                 break;
         }

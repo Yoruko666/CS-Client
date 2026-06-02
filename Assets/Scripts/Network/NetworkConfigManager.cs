@@ -1,22 +1,10 @@
 using UnityEngine;
 
-public class NetworkConfigManager : MonoBehaviour
+public class NetworkConfigManager : SingletonMono<NetworkConfigManager>
 {
-    public static NetworkConfigManager instance;
-
-    [Header("·şÎñÆ÷µØÖ·")]
+    [Header("æœåŠ¡å™¨åœ°å€")]
     public string serverAddress = "127.0.0.1";
 
     [HideInInspector] public int uid;
     [HideInInspector] public int serverPort;
-
-    private void Awake()
-    {
-        if (instance == null)
-        {
-            instance = this;
-            DontDestroyOnLoad(gameObject);
-        }
-        else Destroy(gameObject);
-    }
 }

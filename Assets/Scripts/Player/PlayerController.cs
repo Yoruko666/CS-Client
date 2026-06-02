@@ -1,10 +1,8 @@
 using UnityEngine;
 using System.Collections;
 
-public class PlayerController : MonoBehaviour
+public class PlayerController : SingletonMono<PlayerController>
 {
-    public static PlayerController instance;
-
     private float mouseSensitive = 0.2f;
 
     private float moveInputX, moveInputY;
@@ -77,12 +75,11 @@ public class PlayerController : MonoBehaviour
     private static readonly Vector3 VEC3_Y_UP = new(0, 1, 0);
     private static readonly Vector3 VEC3_ZERO = Vector3.zero;
 
-    private void Awake()
-    {
-        if (instance == null)
-            instance = this;
-        else Destroy(gameObject);
+    /// <summary>PlayerController 挂在场景内的玩家 prefab 上，不需要跨场景保留。</summary>
+    protected override bool DontDestroyOnSceneLoad => false;
 
+    protected override void OnSingletonAwake()
+    {
         characterController = GetComponent<CharacterController>();
         playerState = GetComponent<PlayerState>();
         center = transform.Find("Center");

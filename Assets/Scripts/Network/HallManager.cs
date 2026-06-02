@@ -1,5 +1,7 @@
 using Newtonsoft.Json;
+using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -11,7 +13,7 @@ using UnityEngine.ResourceManagement.ResourceProviders;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-public class HallManager : MonoBehaviour
+public class HallManager : SingletonMono<HallManager>
 {
     private Socket socket;
     private IPEndPoint pos;
@@ -27,20 +29,9 @@ public class HallManager : MonoBehaviour
     private AsyncOperationHandle<SceneInstance> persistentSceneHandle;
     private AsyncOperationHandle<SceneInstance> mapSceneHandle;
 
-    public static HallManager instance; 
-
     private bool inHall = true;
     private bool isLoading = false;
-
-    private void Awake()
-    {
-        if(instance == null)
-        {
-            instance = this;
-            DontDestroyOnLoad(gameObject);
-        }
-        else Destroy(gameObject);
-    }
+    private volatile bool running = true;
 
     void Start()
     {
@@ -111,13 +102,103 @@ public class HallManager : MonoBehaviour
     private void Receive()
     {
         byte[] data = new byte[1024];
-        while (true)
+        StringBuilder buffer = new();
+        while (running)
         {
-            int len = socket.Receive(data);
-            string str = Encoding.UTF8.GetString(data, 0, len);
-            HallMessage msg = JsonConvert.DeserializeObject<HallMessage>(str);
-            messageList.Enqueue(msg);
+            try
+            {
+                int len = socket.Receive(data);
+                if (len <= 0) break;
+                buffer.Append(Encoding.UTF8.GetString(data, 0, len));
+
+                // 处理 TCP 粘包：从 buffer 中提取所有完整 JSON 对象
+                foreach (string json in ExtractJsonObjects(buffer))
+                {
+                    try
+                    {
+                        HallMessage msg = JsonConvert.DeserializeObject<HallMessage>(json);
+                        if (msg != null) messageList.Enqueue(msg);
+                    }
+                    catch (JsonException ex)
+                    {
+                        Debug.LogWarning($"[HallManager] JSON 解析失败：{ex.Message}, 原文: {json}");
+                    }
+                }
+            }
+            catch (ObjectDisposedException)
+            {
+                // socket.Close() 触发，正常退出
+                break;
+            }
+            catch (SocketException ex)
+            {
+                if (ex.SocketErrorCode == SocketError.Interrupted ||
+                    ex.SocketErrorCode == SocketError.OperationAborted ||
+                    ex.SocketErrorCode == SocketError.ConnectionReset ||
+                    !running)
+                    break;
+                Debug.LogWarning($"[HallManager] socket error: {ex.SocketErrorCode}");
+                break;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogException(ex);
+                break;
+            }
         }
+    }
+
+    /// <summary>
+    /// 从缓冲区中提取所有完整 JSON 对象（按 {} 深度匹配，正确处理字符串内的 {}）。
+    /// 与 MainServer.Program.ExtractJsonObjects 行为一致。
+    /// </summary>
+    private static List<string> ExtractJsonObjects(StringBuilder buffer)
+    {
+        string data = buffer.ToString();
+        int pos = 0;
+        var results = new List<string>();
+
+        while (pos < data.Length)
+        {
+            while (pos < data.Length && char.IsWhiteSpace(data[pos])) pos++;
+            if (pos >= data.Length) break;
+            if (data[pos] != '{') { pos++; continue; }
+
+            int depth = 1;
+            bool inString = false;
+            bool escaped = false;
+            int start = pos;
+            pos++;
+
+            while (pos < data.Length && depth > 0)
+            {
+                char c = data[pos];
+                if (escaped) escaped = false;
+                else if (c == '\\') escaped = true;
+                else if (c == '"') inString = !inString;
+                else if (!inString)
+                {
+                    if (c == '{') depth++;
+                    else if (c == '}') depth--;
+                }
+                pos++;
+            }
+
+            if (depth == 0)
+            {
+                results.Add(data[start..pos]);
+                buffer.Remove(0, pos);
+                data = buffer.ToString();
+                pos = 0;
+            }
+            else
+            {
+                // 半个 JSON，等下次再续
+                break;
+            }
+        }
+
+        return results;
     }
 
     public void Match()
@@ -128,7 +209,8 @@ public class HallManager : MonoBehaviour
 
     public void StartGame()
     {
-        socket.Close();
+        running = false;
+        try { socket?.Close(); } catch { }
         inHall = false;
         isLoading = false;
         SceneManager.UnloadSceneAsync("Hall");
@@ -136,7 +218,8 @@ public class HallManager : MonoBehaviour
 
     private void OnApplicationQuit()
     {
-        socket.Close();
+        running = false;
+        try { socket?.Close(); } catch { }
     }
 }
 

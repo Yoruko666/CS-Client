@@ -21,8 +21,8 @@ public class FireState : IState
 
     public override void OnStateEnter()
     {
-        FSM.characterController.animator.Play("Fire");
-        FSM.characterController.Fire();
+        FSM.weaponManager.animator.Play("Fire");
+        FSM.weaponManager.Fire();
         FSM.weaponController.Fire();
         fireTime = FSM.weaponController.weaponConfig.fireTime;
         FSM.fireCold = 1 / FSM.weaponController.weaponConfig.shootSpeed;

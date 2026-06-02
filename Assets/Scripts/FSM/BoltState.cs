@@ -20,7 +20,7 @@ public class BoltState : IState
     public override void OnStateEnter()
     {
         timer = 1.2f;
-        FSM.characterController.animator.Play("Bolt");
+        FSM.weaponManager.animator.Play("Bolt");
         FSM.weaponController.Bolt();
     }
     public override void OnStateExit()
