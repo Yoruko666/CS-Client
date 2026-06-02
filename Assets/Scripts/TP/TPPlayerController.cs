@@ -242,5 +242,14 @@ public class TPPlayerController : MonoBehaviour
         foreach (Rigidbody rigidbody in rigidbodies)
             rigidbody.isKinematic = false;
     }
+
+    /// <summary>
+    /// 被击中时由 BodyCollider 调用。
+    /// 服务器权威伤害，此方法仅用于后续本地视觉反馈（命中特效、音效等）。
+    /// </summary>
+    public void GetDamaged(float damage)
+    {
+        // TODO: 本地视觉反馈（命中特效、受击音效、屏幕闪红等）
+    }
 }
 
